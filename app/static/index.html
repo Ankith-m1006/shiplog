@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ShipLog</title>
+<meta name="description" content="Talk through your work. ShipLog keeps the log, the deadlines and the follow-ups.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --paper:#f6f6f3; --ink:#16181d; --muted:#6a6f78; --line:#e6e6e1;
+  --ship:#0d7a5f; --ship-soft:#e3f3ed; --due:#b25e09; --due-soft:#fbefdf; --late:#b3261e; --late-soft:#fbe7e5;
+  --rule:#5b3cc4; --rule-soft:#eee9fb; --pr:#1f5fbf; --pr-soft:#e6eefb;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#111316; --paper:#1a1d21; --ink:#eceef1; --muted:#9aa0a9; --line:#2a2e34;
+  --ship:#4cc59f; --ship-soft:#173229; --due:#f0a24b; --due-soft:#33261a; --late:#ff7b70; --late-soft:#3a1d1b;
+  --rule:#ae98ff; --rule-soft:#262040; --pr:#7fb0ff; --pr-soft:#1b2639;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px}
+.brand{font:700 24px/1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+.brand i{width:10px;height:10px;border-radius:50%;background:var(--ship);display:inline-block}
+.mode{font-size:12px;color:var(--muted);text-align:right}
+.mode b{color:var(--ink);font-weight:600}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:4px;padding:6px 0 10px;border-bottom:1px solid var(--line)}
+nav button{flex:1;border:0;background:none;padding:10px 4px;border-radius:10px;font-weight:600;color:var(--muted);cursor:pointer}
+nav button[aria-selected=true]{background:var(--paper);color:var(--ink)}
+section{display:none;padding-top:18px}
+section.on{display:block}
+h2{font:700 20px/1.2 "Bricolage Grotesque",sans-serif;margin:22px 0 10px;letter-spacing:-.01em}
+h2 small{font:500 13px Inter,sans-serif;color:var(--muted);margin-left:6px}
+.lead{color:var(--muted);margin:0 0 12px}
+textarea#say{width:100%;min-height:150px;border:1.5px solid var(--line);border-radius:16px;padding:16px;background:var(--paper);resize:vertical;font-size:17px}
+textarea#say:focus{outline:none;border-color:var(--ink)}
+.hint{font-size:13px;color:var(--muted);margin:8px 2px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:600;cursor:pointer;background:var(--ink);color:var(--bg)}
+.btn.ghost{background:var(--paper);color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:wait}
+.btn.full{width:100%}
+.card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0;background:var(--bg)}
+.chip{display:inline-block;font:500 11px/1 "JetBrains Mono",monospace;text-transform:lowercase;padding:5px 7px;border-radius:6px;white-space:nowrap}
+.k-done{background:var(--ship-soft);color:var(--ship)} .k-task,.k-followup{background:var(--paper);color:var(--ink)}
+.k-deadline{background:var(--due-soft);color:var(--due)} .k-rule{background:var(--rule-soft);color:var(--rule)} .k-pr{background:var(--pr-soft);color:var(--pr)}
+.src{font:500 11px "JetBrains Mono",monospace;color:var(--muted)}
+.quote{font-size:13px;color:var(--muted);margin-top:6px}
+.quote::before{content:"you said: ";font-weight:600}
+.flag{font-size:13px;color:var(--due);margin-top:4px}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.item textarea{width:100%;border:1px solid transparent;border-radius:8px;padding:4px 6px;margin:-4px -6px;background:none;resize:none;field-sizing:content;min-height:1.6em;line-height:1.4;overflow:hidden}
+.item textarea:focus{border-color:var(--line);outline:none;background:var(--paper)}
+.item select{border:0;background:none;padding:0;font:500 11px "JetBrains Mono",monospace}
+.item .meta{grid-column:2/4;display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
+.item input[type=date]{border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--paper);font-size:13px}
+.x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
+.summary{font:600 17px/1.35 Inter,sans-serif;width:100%;border:0;background:none;padding:0;margin:0 0 6px;resize:none;field-sizing:content}
+.dropped{font-size:13px;color:var(--late);background:var(--late-soft);border-radius:10px;padding:10px 12px;margin-top:10px}
+.task{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
+.task:first-child{border-top:0}
+.task input[type=checkbox]{width:20px;height:20px;margin-top:2px;accent-color:var(--ship);flex:none}
+.task .t{flex:1}
+.task .when{font:500 12px "JetBrains Mono",monospace;white-space:nowrap;padding-top:3px}
+.when.late{color:var(--late)} .when.soon{color:var(--due)} .when.later{color:var(--muted)}
+.task.done .t{color:var(--muted);text-decoration:line-through}
+.sub{font-size:13px;color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
+.stat{background:var(--paper);border-radius:14px;padding:12px}
+.stat b{display:block;font:700 26px/1 "Bricolage Grotesque",sans-serif}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.late b{color:var(--late)} .stat.soon b{color:var(--due)}
+.entry{border-top:1px solid var(--line);padding:14px 0}
+.entry .top{display:flex;justify-content:space-between;gap:10px}
+.entry time{font:500 12px "JetBrains Mono",monospace;color:var(--muted);white-space:nowrap}
+.entry details{margin-top:6px;font-size:14px}
+.entry summary{cursor:pointer;color:var(--muted);font-size:13px}
+.entry blockquote{margin:8px 0;padding:10px 12px;background:var(--paper);border-radius:10px;font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chips .chip{text-transform:none;font-family:Inter,sans-serif;font-size:12px}
+.filters{display:flex;gap:8px;margin-bottom:6px}
+.filters input,.filters select{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--paper)}
+a{color:var(--pr)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+.err{color:var(--late);font-size:14px;margin-top:8px}
+.foot{margin-top:28px;font-size:13px;color:var(--muted)}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><i></i>ShipLog</div>
+    <div class="mode" id="mode"></div>
+  </header>
+  <nav role="tablist">
+    <button role="tab" data-tab="capture" aria-selected="true">Capture</button>
+    <button role="tab" data-tab="today" aria-selected="false">Today</button>
+    <button role="tab" data-tab="log" aria-selected="false">Log</button>
+  </nav>
+
+  <section id="capture" class="on">
+    <p class="lead">Talk through what happened. ShipLog pulls out what's done, what's due and who to chase, and you check it before anything is saved.</p>
+    <textarea id="say" placeholder="Tap here, hold your Wispr Flow key, and talk. For example: &quot;Pushed the review fixes on PR 1063. The Amazon submission is due Friday night. Don't ping the reviewer again.&quot;"></textarea>
+    <div class="hint" id="count">Dictated with Wispr Flow, typed or pasted: all work.</div>
+    <button class="btn full" id="read">Read it</button>
+    <div class="err" id="readErr" hidden></div>
+    <div id="review"></div>
+  </section>
+
+  <section id="today">
+    <div class="stats" id="stats"></div>
+    <h2>Due this week <small id="weekRange"></small></h2>
+    <div id="week"></div>
+    <h2>Follow-ups and tasks</h2>
+    <div id="open"></div>
+    <h2>Rules I set</h2>
+    <div id="rules"></div>
+    <h2>Later</h2>
+    <div id="later"></div>
+    <h2>Pull requests I'm watching</h2>
+    <div id="prs"></div>
+    <div class="foot"><a id="ics" href="#">Download deadlines as a calendar file (.ics)</a></div>
+  </section>
+
+  <section id="log">
+    <div class="filters">
+      <input id="q" type="search" placeholder="Search the log">
+      <select id="proj"><option value="">All projects</option></select>
+    </div>
+    <div id="entries"></div>
+  </section>
+
+  <div class="foot" id="demoFoot"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KINDS = {done: "done", task: "task", deadline: "deadline", followup: "follow-up", rule: "rule", pr: "pr"};
+let S = null, draft = null, sourceText = "";
+
+function wsKey() {
+  try {
+    const u = new URL(location.href), k = u.searchParams.get("key");
+    if (k) { localStorage.setItem("shiplog.ws", k); u.searchParams.delete("key"); history.replaceState(null, "", u); }
+    let v = localStorage.getItem("shiplog.ws");
+    if (!v) { v = "w" + Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join(""); localStorage.setItem("shiplog.ws", v); }
+    return v;
+  } catch (e) { return window.__ws || (window.__ws = "w" + Math.random().toString(36).slice(2, 14).padEnd(12, "0")); }
+}
+const WS = wsKey();
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Workspace": WS, ...(opts.headers || {})}});
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail && typeof body.detail === "string" ? body.detail : "Something went wrong (" + r.status + ").");
+  return body;
+}
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 2200); }
+
+function day(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); }
+function fmtDay(iso) { return day(iso).toLocaleDateString("en-IN", {weekday: "short", day: "numeric", month: "short"}); }
+function daysFrom(iso) { return Math.round((day(iso) - day(S.today)) / 864e5); }
+function whenLabel(iso) {
+  const n = daysFrom(iso);
+  if (n < 0) return ["late", n === -1 ? "yesterday" : -n + " days late"];
+  if (n === 0) return ["soon", "today"];
+  if (n === 1) return ["soon", "tomorrow"];
+  return [n <= 6 ? "soon" : "later", fmtDay(iso)];
+}
+function src(o) { return o.source === "sample" ? "sample" : "you said"; }
+
+function tab(name) {
+  document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === name));
+  if (name !== "capture") render();
+}
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => tab(b.dataset.tab));
+
+/* ---------- capture ---------- */
+$("#say").addEventListener("input", e => {
+  const w = e.target.value.trim().split(/\s+/).filter(Boolean).length;
+  $("#count").textContent = w ? w + " words" : "Dictated with Wispr Flow, typed or pasted: all work.";
+});
+$("#read").onclick = async () => {
+  const text = $("#say").value.trim();
+  $("#readErr").hidden = true;
+  if (!text) { $("#say").focus(); return; }
+  $("#read").disabled = true; $("#read").textContent = "Reading…";
+  try {
+    draft = await api("/api/read", {method: "POST", body: JSON.stringify({text})});
+    sourceText = text;
+    renderReview();
+  } catch (e) { $("#readErr").textContent = e.message; $("#readErr").hidden = false; }
+  finally { $("#read").disabled = false; $("#read").textContent = "Read it"; }
+};
+
+function renderReview() {
+  const box = $("#review");
+  if (!draft) { box.innerHTML = ""; return; }
+  const projects = S.projects.map(p => p.name);
+  const items = draft.items.map((it, i) => `
+    <div class="item" data-i="${i}">
+      <select class="chip k-${it.kind}" data-f="kind" aria-label="kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${k === it.kind ? "selected" : ""}>${v}</option>`).join("")}</select>
+      <textarea rows="1" data-f="text" aria-label="item">${esc(it.text)}</textarea>
+      <button class="x" data-del="${i}" aria-label="remove">×</button>
+      <div class="meta">
+        ${["deadline", "task", "followup"].includes(it.kind) || it.due ? `<input type="date" data-f="due" value="${it.due || ""}" aria-label="due date">` : ""}
+        ${it.date_words ? `<span>from “${esc(it.date_words)}”</span>` : ""}
+        ${it.repo ? `<span class="chip k-pr">${esc(it.repo.split("/")[1])}${it.number ? " #" + it.number : ""}</span>` : ""}
+        <select data-f="project" aria-label="project"><option value="">no project</option>${projects.map(p => `<option ${p === it.project ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
+      </div>
+      <div style="grid-column:2/4">
+        <div class="quote">“${esc(it.quote)}”</div>
+        ${it.flags.map(f => `<div class="flag">Check: ${esc(f)}</div>`).join("")}
+      </div>
+    </div>`).join("");
+  box.innerHTML = `
+    <h2>Here's what I understood <small>edit anything, then save</small></h2>
+    <div class="card">
+      <textarea class="summary" id="sum" rows="2" aria-label="summary">${esc(draft.summary)}</textarea>
+      ${items || '<div class="empty">Nothing to save from that update.</div>'}
+      ${draft.dropped.length ? `<div class="dropped"><b>Left out, couldn't trace to your words:</b> ${draft.dropped.map(d => esc(d.text)).join("; ")}</div>` : ""}
+    </div>
+    <div class="row"><button class="btn" id="save" ${draft.items.length ? "" : "disabled"}>Save ${draft.items.length} item${draft.items.length === 1 ? "" : "s"}</button><button class="btn ghost" id="discard">Discard</button></div>`;
+  box.querySelectorAll("[data-f]").forEach(el => el.onchange = el.oninput = () => {
+    const it = draft.items[el.closest(".item").dataset.i];
+    it[el.dataset.f] = el.value || (el.dataset.f === "due" ? null : "");
+    if (el.dataset.f === "kind") renderReview();
+  });
+  $("#sum").oninput = e => draft.summary = e.target.value;
+  box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { draft.items.splice(+b.dataset.del, 1); renderReview(); });
+  $("#discard").onclick = () => { draft = null; renderReview(); };
+  $("#save").onclick = save;
+  box.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+async function save() {
+  $("#save").disabled = true;
+  const projects = draft.items.map(i => i.project).filter(Boolean);
+  const top = projects.sort((a, b) => projects.filter(x => x === b).length - projects.filter(x => x === a).length)[0] || "";
+  try {
+    await api("/api/save", {method: "POST", body: JSON.stringify({text: sourceText, summary: draft.summary, project: top,
+      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who}) => ({kind, text, quote, due, date_words, project, repo, number, who}))})});
+    const n = draft.items.length;
+    draft = null; $("#say").value = ""; $("#count").textContent = "Saved.";
+    renderReview(); await load(); toast(n + " item" + (n === 1 ? "" : "s") + " saved");
+    tab("today");
+  } catch (e) { $("#save").disabled = false; toast(e.message); }
+}
+
+/* ---------- today ---------- */
+function weekEnd() { const d = day(S.today); const back = (d.getDay() + 6) % 7; const end = new Date(d); end.setDate(d.getDate() - back + 6); return end; }
+function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+
+function taskRow(it) {
+  const [cls, label] = it.due ? whenLabel(it.due) : ["later", ""];
+  return `<div class="task ${it.status === "done" ? "done" : ""}">
+    <input type="checkbox" data-done="${it.id}" ${it.status === "done" ? "checked" : ""} aria-label="mark done">
+    <div class="t">${esc(it.text)}<div class="sub"><span class="chip k-${it.kind}">${KINDS[it.kind]}</span> ${esc(it.project || "")} · <span class="src">${src(it)}</span>${it.quote ? ` · “${esc(it.quote)}”` : ""}</div></div>
+    ${label ? `<div class="when ${cls}">${label}</div>` : ""}</div>`;
+}
+
+function renderToday() {
+  const open = S.items.filter(i => i.status === "open");
+  const end = iso(weekEnd());
+  const dated = open.filter(i => i.due && i.kind !== "rule").sort((a, b) => a.due.localeCompare(b.due));
+  const late = dated.filter(i => i.due < S.today), week = dated.filter(i => i.due >= S.today && i.due <= end), later = dated.filter(i => i.due > end);
+  const undated = open.filter(i => !i.due && ["task", "followup"].includes(i.kind));
+  const rules = open.filter(i => i.kind === "rule");
+  $("#stats").innerHTML = `<div class="stat late"><b>${late.length}</b><span>overdue</span></div><div class="stat soon"><b>${week.length}</b><span>due this week</span></div><div class="stat"><b>${S.items.filter(i => i.kind === "done").length}</b><span>shipped</span></div>`;
+  $("#weekRange").textContent = "to " + fmtDay(end);
+  const list = (arr, empty) => arr.length ? `<div class="card">${arr.map(taskRow).join("")}</div>` : `<div class="empty">${empty}</div>`;
+  $("#week").innerHTML = list([...late, ...week], "Nothing due this week.");
+  $("#open").innerHTML = list(undated, "No open follow-ups.");
+  $("#later").innerHTML = list(later, "Nothing further out.");
+  $("#rules").innerHTML = rules.length ? `<div class="card">${rules.map(r => `<div class="task"><div class="t">${esc(r.text)}<div class="sub">${r.repo ? esc(r.repo.split("/")[1]) + (r.number ? " #" + r.number : "") + " · " : ""}<span class="src">${src(r)}</span></div></div><button class="linkbtn" data-drop="${r.id}">lift</button></div>`).join("")}</div>` : `<div class="empty">No rules yet. Say things like "don't ping them again".</div>`;
+  $("#prs").innerHTML = S.watch.length ? `<div class="card">${S.watch.map(w => `<div class="task"><div class="t"><a href="https://github.com/${esc(w.repo)}/pull/${w.number}" target="_blank" rel="noopener">${esc(w.repo)}#${w.number}</a><div class="sub">live status from GitHub comes next · <span class="src">${src(w)}</span></div></div></div>`).join("")}</div>` : `<div class="empty">Mention a PR by number and it shows up here.</div>`;
+  $("#ics").href = "/api/deadlines.ics?w=" + encodeURIComponent(WS);
+  document.querySelectorAll("[data-done]").forEach(c => c.onchange = () => patch(c.dataset.done, {status: c.checked ? "done" : "open"}));
+  document.querySelectorAll("[data-drop]").forEach(b => b.onclick = () => patch(b.dataset.drop, {status: "dropped"}));
+}
+async function patch(id, body) {
+  try { await api("/api/item/" + id, {method: "PATCH", body: JSON.stringify(body)}); await load(); render(); }
+  catch (e) { toast(e.message); }
+}
+
+/* ---------- log ---------- */
+function renderLog() {
+  const q = $("#q").value.trim().toLowerCase(), p = $("#proj").value;
+  const byId = Object.fromEntries(S.items.map(i => [i.id, i]));
+  const rows = S.entries.filter(e => (!p || e.project === p) && (!q || (e.text + " " + e.summary).toLowerCase().includes(q)));
+  $("#entries").innerHTML = rows.length ? rows.map(e => {
+    const at = new Date(e.at);
+    return `<div class="entry"><div class="top"><b>${esc(e.summary)}</b><time>${at.toLocaleDateString("en-IN", {day: "numeric", month: "short"})} ${at.toLocaleTimeString("en-IN", {hour: "2-digit", minute: "2-digit", hour12: false})}</time></div>
+      <div class="sub">${esc(e.project || "no project")} · <span class="src">${src(e)}</span></div>
+      <div class="chips">${e.items.map(id => byId[id]).filter(Boolean).map(i => `<span class="chip k-${i.kind}">${KINDS[i.kind]}: ${esc(i.text.length > 38 ? i.text.slice(0, 36) + "…" : i.text)}</span>`).join("")}</div>
+      <details><summary>What I said</summary><blockquote>${esc(e.text)}</blockquote><button class="linkbtn" data-rm="${e.id}">Delete this entry</button></details></div>`;
+  }).join("") : `<div class="empty">No entries${q || p ? " match" : " yet"}.</div>`;
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+    if (b.dataset.armed) { try { await api("/api/entry/" + b.dataset.rm, {method: "DELETE"}); await load(); render(); toast("Entry deleted"); } catch (e) { toast(e.message); } }
+    else { b.dataset.armed = 1; b.textContent = "Tap again to delete it and its items"; }
+  });
+}
+$("#q").oninput = renderLog; $("#proj").onchange = renderLog;
+
+/* ---------- shell ---------- */
+function render() {
+  if (!S) return;
+  renderToday(); renderLog();
+}
+async function load() {
+  S = await api("/api/state");
+  $("#mode").innerHTML = S.owner ? "<b>My workspace</b><br>real data" : "<b>Demo copy</b><br>yours to try";
+  const sel = $("#proj"), cur = sel.value;
+  sel.innerHTML = '<option value="">All projects</option>' + S.projects.map(p => `<option ${p.name === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("");
+  $("#demoFoot").innerHTML = S.owner ? "" : `This is your own copy, seeded with a public-safe version of one developer's real October. Anything you save stays in this browser's copy. <button class="linkbtn" id="reset">Reset the demo</button>`;
+  const r = $("#reset");
+  if (r) r.onclick = async () => { if (!r.dataset.armed) { r.dataset.armed = 1; r.textContent = "Tap again to reset"; return; } await api("/api/reset", {method: "POST"}); await load(); render(); toast("Demo reset"); };
+}
+load().then(render).catch(e => { $("#mode").textContent = e.message; });
+</script>
+</body>
+</html>
