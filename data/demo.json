@@ -1,0 +1,373 @@
+{
+ "projects": [
+  {
+   "name": "Kestra Hacktober",
+   "deadline": "2026-10-31",
+   "about": "open-source contribution drive"
+  },
+  {
+   "name": "ShipLog",
+   "deadline": "2026-10-30",
+   "about": "No Hands: The Wispr Challenge"
+  },
+  {
+   "name": "Amazon Alexa+",
+   "deadline": "2026-10-24",
+   "about": "voice skill hackathon"
+  },
+  {
+   "name": "DEV weekly challenge",
+   "deadline": null,
+   "about": "weekly writing challenge"
+  },
+  {
+   "name": "OpenCV",
+   "deadline": "2026-10-27",
+   "about": "computer vision hackathon"
+  },
+  {
+   "name": "GitLab",
+   "deadline": "2026-10-27",
+   "about": "GitLab hackathon"
+  },
+  {
+   "name": "Qloo",
+   "deadline": "2026-10-31",
+   "about": "taste AI hackathon"
+  },
+  {
+   "name": "Graph Hacks",
+   "deadline": null,
+   "about": "graph database hackathon"
+  }
+ ],
+ "entries": [
+  {
+   "id": "demo-e4",
+   "at": "2026-10-18T23:30:00+05:30",
+   "text": "Submitted DawaiGraph to Graph Hacks with the video and the blog. DEV week one didn't place, lesson noted. Tomorrow I start ShipLog, and Amazon Alexa is due Friday night.",
+   "summary": "Submitted DawaiGraph; DEV week 1 didn't place; ShipLog starts tomorrow.",
+   "project": "Graph Hacks",
+   "source": "sample",
+   "items": [
+    "demo-i10",
+    "demo-i11",
+    "demo-i12",
+    "demo-i13"
+   ]
+  },
+  {
+   "id": "demo-e3",
+   "at": "2026-10-17T21:15:00+05:30",
+   "text": "BillSahi is published on DEV for week two. Results come around the twenty-third. The Bitbucket Pipelines blueprint also merged, that's the thirty-third.",
+   "summary": "Published BillSahi on DEV; Bitbucket blueprint merged.",
+   "project": "DEV weekly challenge",
+   "source": "sample",
+   "items": [
+    "demo-i7",
+    "demo-i8",
+    "demo-i9"
+   ]
+  },
+  {
+   "id": "demo-e2",
+   "at": "2026-10-16T16:40:00+05:30",
+   "text": "PDFBox plugin got approved after three review rounds, the last one was icons for dark mode. The plugin-kestra paging fix merged today. Asked the JDBC reviewer to approve the CI run, don't ping them again. No new issue claims until some of the open PRs merge.",
+   "summary": "PDFBox plugin approved, paging fix merged, asked for CI approval on JDBC.",
+   "project": "Kestra Hacktober",
+   "source": "sample",
+   "items": [
+    "demo-i3",
+    "demo-i4",
+    "demo-i5",
+    "demo-i6"
+   ]
+  },
+  {
+   "id": "demo-e1",
+   "at": "2026-10-14T19:10:00+05:30",
+   "text": "Posted a follow-up on the pt_BR duration PR, tagged both reviewers. CI is green. If nobody replies in two days, one more nudge, then stop.",
+   "summary": "Followed up on the pt_BR duration PR; CI is green.",
+   "project": "Kestra Hacktober",
+   "source": "sample",
+   "items": [
+    "demo-i1",
+    "demo-i2"
+   ]
+  }
+ ],
+ "items": [
+  {
+   "id": "demo-i1",
+   "kind": "done",
+   "text": "Followed up on the pt_BR duration PR",
+   "quote": "Posted a follow-up on the pt_BR duration PR",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e1",
+   "source": "sample",
+   "created": "2026-10-14T19:10:00+05:30",
+   "repo": "kestra-io/kestra",
+   "number": 20735
+  },
+  {
+   "id": "demo-i2",
+   "kind": "rule",
+   "text": "Only one more nudge on the pt_BR PR, then stop",
+   "quote": "one more nudge, then stop",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e1",
+   "source": "sample",
+   "created": "2026-10-14T19:10:00+05:30",
+   "repo": "kestra-io/kestra",
+   "number": 20735
+  },
+  {
+   "id": "demo-i3",
+   "kind": "done",
+   "text": "PDFBox plugin approved",
+   "quote": "PDFBox plugin got approved after three review rounds",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e2",
+   "source": "sample",
+   "created": "2026-10-16T16:40:00+05:30",
+   "repo": "kestra-io/plugin-pdfbox",
+   "number": 5
+  },
+  {
+   "id": "demo-i4",
+   "kind": "done",
+   "text": "plugin-kestra paging fix merged",
+   "quote": "The plugin-kestra paging fix merged today",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e2",
+   "source": "sample",
+   "created": "2026-10-16T16:40:00+05:30",
+   "repo": "kestra-io/plugin-kestra",
+   "number": 202
+  },
+  {
+   "id": "demo-i5",
+   "kind": "rule",
+   "text": "Don't ping the JDBC reviewer again",
+   "quote": "don't ping them again",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e2",
+   "source": "sample",
+   "created": "2026-10-16T16:40:00+05:30",
+   "repo": "kestra-io/plugin-jdbc",
+   "number": 1063
+  },
+  {
+   "id": "demo-i6",
+   "kind": "rule",
+   "text": "No new issue claims until open PRs merge",
+   "quote": "No new issue claims until some of the open PRs merge",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e2",
+   "source": "sample",
+   "created": "2026-10-16T16:40:00+05:30"
+  },
+  {
+   "id": "demo-i7",
+   "kind": "done",
+   "text": "BillSahi published on DEV (week 2)",
+   "quote": "BillSahi is published on DEV for week two",
+   "due": null,
+   "project": "DEV weekly challenge",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e3",
+   "source": "sample",
+   "created": "2026-10-17T21:15:00+05:30"
+  },
+  {
+   "id": "demo-i8",
+   "kind": "task",
+   "text": "Check DEV week 2 results",
+   "quote": "Results come around the twenty-third",
+   "due": "2026-10-23",
+   "project": "DEV weekly challenge",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e3",
+   "source": "sample",
+   "created": "2026-10-17T21:15:00+05:30"
+  },
+  {
+   "id": "demo-i9",
+   "kind": "done",
+   "text": "Bitbucket Pipelines blueprint merged (33rd)",
+   "quote": "The Bitbucket Pipelines blueprint also merged",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e3",
+   "source": "sample",
+   "created": "2026-10-17T21:15:00+05:30"
+  },
+  {
+   "id": "demo-i10",
+   "kind": "done",
+   "text": "Submitted DawaiGraph to Graph Hacks",
+   "quote": "Submitted DawaiGraph to Graph Hacks with the video and the blog",
+   "due": null,
+   "project": "Graph Hacks",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e4",
+   "source": "sample",
+   "created": "2026-10-18T23:30:00+05:30"
+  },
+  {
+   "id": "demo-i11",
+   "kind": "done",
+   "text": "DEV week 1 didn't place",
+   "quote": "DEV week one didn't place",
+   "due": null,
+   "project": "DEV weekly challenge",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e4",
+   "source": "sample",
+   "created": "2026-10-18T23:30:00+05:30"
+  },
+  {
+   "id": "demo-i12",
+   "kind": "task",
+   "text": "Start building ShipLog",
+   "quote": "Tomorrow I start ShipLog",
+   "due": "2026-10-19",
+   "project": "ShipLog",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e4",
+   "source": "sample",
+   "created": "2026-10-18T23:30:00+05:30"
+  },
+  {
+   "id": "demo-i13",
+   "kind": "deadline",
+   "text": "Amazon Alexa+ submission",
+   "quote": "Amazon Alexa is due Friday night",
+   "due": "2026-10-24",
+   "project": "Amazon Alexa+",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e4",
+   "source": "sample",
+   "created": "2026-10-18T23:30:00+05:30"
+  },
+  {
+   "id": "demo-i14",
+   "kind": "deadline",
+   "text": "OpenCV submission (12:15 IST)",
+   "quote": "",
+   "due": "2026-10-27",
+   "project": "OpenCV",
+   "who": "",
+   "status": "open",
+   "entry": null,
+   "source": "sample",
+   "created": "2026-10-18T12:00:00+05:30"
+  },
+  {
+   "id": "demo-i15",
+   "kind": "deadline",
+   "text": "GitLab submission (18:30 IST)",
+   "quote": "",
+   "due": "2026-10-27",
+   "project": "GitLab",
+   "who": "",
+   "status": "open",
+   "entry": null,
+   "source": "sample",
+   "created": "2026-10-18T12:00:00+05:30"
+  },
+  {
+   "id": "demo-i16",
+   "kind": "deadline",
+   "text": "Wispr challenge submission (23:59 IST)",
+   "quote": "",
+   "due": "2026-10-30",
+   "project": "ShipLog",
+   "who": "",
+   "status": "open",
+   "entry": null,
+   "source": "sample",
+   "created": "2026-10-18T12:00:00+05:30"
+  },
+  {
+   "id": "demo-i17",
+   "kind": "deadline",
+   "text": "Qloo submission (09:15 IST)",
+   "quote": "",
+   "due": "2026-10-31",
+   "project": "Qloo",
+   "who": "",
+   "status": "open",
+   "entry": null,
+   "source": "sample",
+   "created": "2026-10-18T12:00:00+05:30"
+  },
+  {
+   "id": "demo-i18",
+   "kind": "deadline",
+   "text": "Kestra Hacktober ends",
+   "quote": "",
+   "due": "2026-10-31",
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "open",
+   "entry": null,
+   "source": "sample",
+   "created": "2026-10-18T12:00:00+05:30"
+  }
+ ],
+ "github": {},
+ "watch": [
+  {
+   "repo": "kestra-io/kestra",
+   "number": 20735,
+   "source": "sample"
+  },
+  {
+   "repo": "kestra-io/kestra",
+   "number": 21008,
+   "source": "sample"
+  },
+  {
+   "repo": "kestra-io/plugin-jdbc",
+   "number": 1063,
+   "source": "sample"
+  },
+  {
+   "repo": "kestra-io/plugin-pdfbox",
+   "number": 5,
+   "source": "sample"
+  },
+  {
+   "repo": "kestra-io/plugin-kestra",
+   "number": 202,
+   "source": "sample"
+  }
+ ]
+}
