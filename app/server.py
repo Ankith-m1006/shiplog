@@ -16,7 +16,9 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 import dates
+import drafts
 import extract as ex
+import github
 from store import Workspaces
 
 STATIC = pathlib.Path(__file__).resolve().parent / "static"
@@ -98,6 +100,8 @@ def read(body: ReadBody, request: Request):
     repos = sorted({w["repo"] for w in doc["watch"]})
     try:
         return ex.extract(body.text, [p["name"] for p in doc["projects"]], repos)
+    except ex.InputError as e:
+        raise HTTPException(422, str(e))
     except ex.ExtractError as e:
         raise HTTPException(503, str(e))
 
@@ -167,6 +171,28 @@ def delete_entry(entry_id: str, request: Request):
         return {"deleted": entry_id}
 
     return spaces.edit(key, apply, seed)
+
+
+@app.get("/api/github")
+def github_status(request: Request):
+    key, seed, _ = workspace(request)
+    doc = spaces.load(key, seed)
+    return {"prs": [{**github.status(w["repo"], w["number"]), "source": w.get("source", "said")} for w in doc["watch"][:20]]}
+
+
+@app.post("/api/draft/{item_id}")
+def follow_up_draft(item_id: str, request: Request):
+    key, seed, _ = workspace(request)
+    doc = spaces.load(key, seed)
+    target = next((i for i in doc["items"] if i["id"] == item_id), None)
+    if not target or target["kind"] not in ("followup", "pr", "task"):
+        raise HTTPException(404, "no follow-up with that id")
+    rules = [i for i in doc["items"] if i["kind"] == "rule"]
+    pr = github.status(target["repo"], target["number"]) if target.get("repo") and target.get("number") else None
+    try:
+        return drafts.draft(target, rules, pr)
+    except ex.ExtractError as e:
+        raise HTTPException(503, str(e))
 
 
 @app.post("/api/reset")

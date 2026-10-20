@@ -80,7 +80,8 @@
     "demo-i3",
     "demo-i4",
     "demo-i5",
-    "demo-i6"
+    "demo-i6",
+    "demo-i20"
    ]
   },
   {
@@ -92,7 +93,8 @@
    "source": "sample",
    "items": [
     "demo-i1",
-    "demo-i2"
+    "demo-i2",
+    "demo-i19"
    ]
   }
  ],
@@ -340,6 +342,36 @@
    "entry": null,
    "source": "sample",
    "created": "2026-10-18T12:00:00+05:30"
+  },
+  {
+   "id": "demo-i19",
+   "kind": "followup",
+   "text": "One more nudge to the pt_BR reviewers if nobody replied",
+   "quote": "If nobody replies in two days, one more nudge",
+   "due": "2026-10-16",
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e1",
+   "source": "sample",
+   "created": "2026-10-14T19:10:00+05:30",
+   "repo": "kestra-io/kestra",
+   "number": 20735
+  },
+  {
+   "id": "demo-i20",
+   "kind": "followup",
+   "text": "Check with the JDBC reviewer about the CI run",
+   "quote": "Asked the JDBC reviewer to approve the CI run",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "open",
+   "entry": "demo-e2",
+   "source": "sample",
+   "created": "2026-10-16T16:40:00+05:30",
+   "repo": "kestra-io/plugin-jdbc",
+   "number": 1063
   }
  ],
  "github": {},

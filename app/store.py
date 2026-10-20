@@ -5,6 +5,7 @@ import json
 import os
 import pathlib
 import threading
+import uuid
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEMO = ROOT / "data" / "demo.json"
@@ -29,7 +30,7 @@ class LocalStore:
         return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
 
     def put(self, key, doc):
-        tmp = self.folder / f"{key}.json.tmp"
+        tmp = self.folder / f"{key}.{uuid.uuid4().hex[:8]}.tmp"  # one temp file per write, so two writers never share it
         tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=1), encoding="utf-8")
         tmp.replace(self.folder / f"{key}.json")
 
@@ -50,29 +51,32 @@ class BucketStore:
 
 class Workspaces:
     """Loads a workspace, creating it from the demo seed (or empty, for the owner) the first time.
-    A lock per process keeps read-modify-write safe on one Cloud Run instance."""
+    One re-entrant lock per process covers both the first load (which seeds the workspace) and
+    read-modify-write, so parallel first requests for a new workspace can't race."""
 
     def __init__(self, backend=None):
         bucket = os.environ.get("SHIPLOG_BUCKET")
         self.backend = backend or (BucketStore(bucket) if bucket else LocalStore())
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.cache = {}
 
     def load(self, key, seed="demo"):
-        if key in self.cache:
-            return self.cache[key]
-        doc = self.backend.get(key)
-        if doc is None:
-            doc = demo() if seed == "demo" else empty()
-            self.backend.put(key, doc)
-        self.cache[key] = doc
-        while len(self.cache) > 200:  # keep memory flat when many judges open demo copies
-            self.cache.pop(next(iter(self.cache)))
-        return doc
+        with self.lock:
+            if key in self.cache:
+                return self.cache[key]
+            doc = self.backend.get(key)
+            if doc is None:
+                doc = demo() if seed == "demo" else empty()
+                self.backend.put(key, doc)
+            self.cache[key] = doc
+            while len(self.cache) > 200:  # keep memory flat when many judges open demo copies
+                self.cache.pop(next(iter(self.cache)))
+            return doc
 
     def save(self, key, doc):
-        self.cache[key] = doc
-        self.backend.put(key, doc)
+        with self.lock:
+            self.cache[key] = doc
+            self.backend.put(key, doc)
 
     def reset(self, key):
         doc = demo()
