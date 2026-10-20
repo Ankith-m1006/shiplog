@@ -70,6 +70,10 @@ class ExtractError(Exception):
     """A failure the user should see in plain words (missing key, rate limit, model down)."""
 
 
+class InputError(ExtractError):
+    """The update itself can't be read (empty or too long): the user's to fix, not a server failure."""
+
+
 def api_key():
     if os.environ.get("GEMINI_API_KEY"):
         return os.environ["GEMINI_API_KEY"]
@@ -85,16 +89,14 @@ def norm(s):
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s#/.-]", " ", s.lower().replace("’", "'"))).strip()
 
 
-def ask_model(text, projects, repos, today):
+def ask_model_raw(system, user_text, schema):
+    """One Gemini call with a JSON schema; retries server errors and unreadable answers twice."""
     key = api_key()
     if not key:
         raise ExtractError("No Gemini key is set on the server, so updates can't be read right now.")
-    context = (f"Today is {today:%A %d %B %Y} (IST).\n"
-               f"Known projects: {', '.join(projects) or 'none'}\n"
-               f"Known repositories: {', '.join(repos) or 'none'}\n\nUpdate:\n{text}")
-    body = {"systemInstruction": {"parts": [{"text": SYSTEM}]},
-            "contents": [{"role": "user", "parts": [{"text": context}]}],
-            "generationConfig": {"responseMimeType": "application/json", "responseSchema": SCHEMA,
+    body = {"systemInstruction": {"parts": [{"text": system}]},
+            "contents": [{"role": "user", "parts": [{"text": user_text}]}],
+            "generationConfig": {"responseMimeType": "application/json", "responseSchema": schema,
                                  "temperature": 0.1}}
     req = urllib.request.Request(API.format(model=MODEL), data=json.dumps(body).encode(),
                                  headers={"Content-Type": "application/json", "x-goog-api-key": key})
@@ -115,6 +117,13 @@ def ask_model(text, projects, repos, today):
             if attempt == 2:
                 raise ExtractError("Couldn't reach Gemini. Check the connection and try again.")
         time.sleep(1.5 * (attempt + 1))
+
+
+def ask_model(text, projects, repos, today):
+    context = (f"Today is {today:%A %d %B %Y} (IST).\n"
+               f"Known projects: {', '.join(projects) or 'none'}\n"
+               f"Known repositories: {', '.join(repos) or 'none'}\n\nUpdate:\n{text}")
+    return ask_model_raw(SYSTEM, context, SCHEMA)
 
 
 def check(raw, text, projects, repos, today):
@@ -171,9 +180,9 @@ def check(raw, text, projects, repos, today):
 def extract(text, projects, repos, today=None):
     text = (text or "").strip()
     if not text:
-        raise ExtractError("Say or type an update first.")
+        raise InputError("Say or type an update first.")
     if len(text) > MAX_CHARS:
-        raise ExtractError(f"That update is over {MAX_CHARS} characters. Split it into two.")
+        raise InputError(f"That update is over {MAX_CHARS} characters. Split it into two.")
     today = today or dates.now().date()
     draft, dropped = check(ask_model(text, projects, repos, today), text, projects, repos, today)
     return {**draft, "dropped": dropped, "today": today.isoformat()}

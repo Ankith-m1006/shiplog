@@ -48,6 +48,11 @@ textarea#say:focus{outline:none;border-color:var(--ink)}
 .k-done{background:var(--ship-soft);color:var(--ship)} .k-task,.k-followup{background:var(--paper);color:var(--ink)}
 .k-deadline{background:var(--due-soft);color:var(--due)} .k-rule{background:var(--rule-soft);color:var(--rule)} .k-pr{background:var(--pr-soft);color:var(--pr)}
 .src{font:500 11px "JetBrains Mono",monospace;color:var(--muted)}
+.st{font:600 11px/1 "JetBrains Mono",monospace;padding:5px 7px;border-radius:6px;white-space:nowrap}
+.st-merged{background:var(--ship-soft);color:var(--ship)} .st-open,.st-draft{background:var(--pr-soft);color:var(--pr)}
+.st-closed,.st-unknown{background:var(--paper);color:var(--muted)}
+.draft{margin-top:8px;padding:12px;border-radius:12px;background:var(--paper);font-size:14px;white-space:pre-wrap}
+.draft.blocked{background:var(--rule-soft);color:var(--rule)}
 .quote{font-size:13px;color:var(--muted);margin-top:6px}
 .quote::before{content:"you said: ";font-weight:600}
 .flag{font-size:13px;color:var(--due);margin-top:4px}
@@ -266,7 +271,34 @@ function taskRow(it) {
   return `<div class="task ${it.status === "done" ? "done" : ""}">
     <input type="checkbox" data-done="${it.id}" ${it.status === "done" ? "checked" : ""} aria-label="mark done">
     <div class="t">${esc(it.text)}<div class="sub"><span class="chip k-${it.kind}">${KINDS[it.kind]}</span> ${esc(it.project || "")} · <span class="src">${src(it)}</span>${it.quote ? ` · “${esc(it.quote)}”` : ""}</div></div>
-    ${label ? `<div class="when ${cls}">${label}</div>` : ""}</div>`;
+    ${label ? `<div class="when ${cls}">${label}</div>` : ""}</div>
+    ${it.kind === "followup" && it.status === "open" ? `<div class="row"><button class="linkbtn" data-draft="${it.id}">Draft follow-up</button></div><div id="d-${it.id}"></div>` : ""}`;
+}
+async function makeDraft(id) {
+  const box = $("#d-" + id);
+  box.innerHTML = `<div class="draft">Writing a draft from what you saved…</div>`;
+  try {
+    const d = await api("/api/draft/" + id, {method: "POST"});
+    box.innerHTML = d.blocked
+      ? `<div class="draft blocked">Not drafted. Your rule says: <b>${esc(d.rule)}</b>${d.quote ? ` (you said “${esc(d.quote)}”)` : ""}. Lift the rule first if that has changed.</div>`
+      : `<div class="draft">${esc(d.draft)}</div><div class="row"><button class="linkbtn" data-copy="${id}">Copy</button><span class="src">a draft only · ShipLog never sends anything</span></div>`;
+    const c = box.querySelector("[data-copy]");
+    if (c) c.onclick = async () => { await navigator.clipboard.writeText(d.draft); toast("Copied"); };
+  } catch (e) { box.innerHTML = `<div class="draft">${esc(e.message)}</div>`; }
+}
+function prRow(w, live) {
+  const s = live || {state: "checking", detail: "checking GitHub…"};
+  return `<div class="task"><div class="t"><a href="https://github.com/${esc(w.repo)}/pull/${w.number}" target="_blank" rel="noopener">${esc(w.repo)}#${w.number}</a>${s.title ? " " + esc(s.title) : ""}
+    <div class="sub">${esc(s.detail || "")}${s.checked ? ` · <span class="src">GitHub, checked ${esc(s.checked)}</span>` : ""} · <span class="src">${src(w)}</span></div></div>
+    <span class="st st-${esc(s.state === "checking" ? "unknown" : s.state)}">${esc(s.state)}</span></div>`;
+}
+async function loadGithub() {
+  if (!S.watch.length) return;
+  try {
+    const {prs} = await api("/api/github");
+    const byKey = Object.fromEntries(prs.map(p => [p.repo + "#" + p.number, p]));
+    $("#prs").innerHTML = `<div class="card">${S.watch.map(w => prRow(w, byKey[w.repo + "#" + w.number])).join("")}</div>`;
+  } catch (e) { toast(e.message); }
 }
 
 function renderToday() {
@@ -283,10 +315,12 @@ function renderToday() {
   $("#open").innerHTML = list(undated, "No open follow-ups.");
   $("#later").innerHTML = list(later, "Nothing further out.");
   $("#rules").innerHTML = rules.length ? `<div class="card">${rules.map(r => `<div class="task"><div class="t">${esc(r.text)}<div class="sub">${r.repo ? esc(r.repo.split("/")[1]) + (r.number ? " #" + r.number : "") + " · " : ""}<span class="src">${src(r)}</span></div></div><button class="linkbtn" data-drop="${r.id}">lift</button></div>`).join("")}</div>` : `<div class="empty">No rules yet. Say things like "don't ping them again".</div>`;
-  $("#prs").innerHTML = S.watch.length ? `<div class="card">${S.watch.map(w => `<div class="task"><div class="t"><a href="https://github.com/${esc(w.repo)}/pull/${w.number}" target="_blank" rel="noopener">${esc(w.repo)}#${w.number}</a><div class="sub">live status from GitHub comes next · <span class="src">${src(w)}</span></div></div></div>`).join("")}</div>` : `<div class="empty">Mention a PR by number and it shows up here.</div>`;
+  $("#prs").innerHTML = S.watch.length ? `<div class="card">${S.watch.map(w => prRow(w)).join("")}</div>` : `<div class="empty">Mention a PR by number and it shows up here.</div>`;
+  loadGithub();
   $("#ics").href = "/api/deadlines.ics?w=" + encodeURIComponent(WS);
   document.querySelectorAll("[data-done]").forEach(c => c.onchange = () => patch(c.dataset.done, {status: c.checked ? "done" : "open"}));
   document.querySelectorAll("[data-drop]").forEach(b => b.onclick = () => patch(b.dataset.drop, {status: "dropped"}));
+  document.querySelectorAll("[data-draft]").forEach(b => b.onclick = () => makeDraft(b.dataset.draft));
 }
 async function patch(id, body) {
   try { await api("/api/item/" + id, {method: "PATCH", body: JSON.stringify(body)}); await load(); render(); }
