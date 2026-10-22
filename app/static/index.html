@@ -95,6 +95,19 @@ a{color:var(--pr)}
 .toast.on{opacity:1}
 .err{color:var(--late);font-size:14px;margin-top:8px}
 .foot{margin-top:28px;font-size:13px;color:var(--muted)}
+textarea#askq{width:100%;min-height:84px;border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--paper);resize:vertical;font-size:17px}
+textarea#askq:focus{outline:none;border-color:var(--ink)}
+.suggest{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px}
+.suggest button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer}
+.answer{border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
+.answer .a{font-size:17px;line-height:1.45}
+.answer.none{background:var(--paper)}
+.answer .none-note{font-size:13px;color:var(--muted);margin-top:6px}
+.cite{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
+.cite:first-of-type{margin-top:12px}
+.cite .q{color:var(--ink)}
+.cite .q::before{content:"you said: ";font-weight:600;color:var(--muted)}
+.cite .w{grid-column:2;font:500 12px "JetBrains Mono",monospace;color:var(--muted)}
 .linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0;font-size:13px}
 </style>
 </head>
@@ -108,6 +121,7 @@ a{color:var(--pr)}
     <button role="tab" data-tab="capture" aria-selected="true">Capture</button>
     <button role="tab" data-tab="today" aria-selected="false">Today</button>
     <button role="tab" data-tab="log" aria-selected="false">Log</button>
+    <button role="tab" data-tab="ask" aria-selected="false">Ask</button>
   </nav>
 
   <section id="capture" class="on">
@@ -140,6 +154,15 @@ a{color:var(--pr)}
       <select id="proj"><option value="">All projects</option></select>
     </div>
     <div id="entries"></div>
+  </section>
+
+  <section id="ask">
+    <p class="lead">Ask about your own work. ShipLog answers only from what you saved, and shows the words each answer came from. If it isn't in your log, it says so.</p>
+    <textarea id="askq" placeholder="Hold your Wispr Flow key and ask. For example: &quot;What did I say about the Amazon deadline?&quot;"></textarea>
+    <div class="suggest" id="suggest"></div>
+    <button class="btn full" id="askBtn">Ask</button>
+    <div class="err" id="askErr" hidden></div>
+    <div id="answer"></div>
   </section>
 
   <div class="foot" id="demoFoot"></div>
@@ -186,9 +209,29 @@ function src(o) { return o.source === "sample" ? "sample" : "you said"; }
 function tab(name) {
   document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
   document.querySelectorAll("section").forEach(s => s.classList.toggle("on", s.id === name));
-  if (name !== "capture") render();
+  if (name !== "capture" && name !== "ask") render();
 }
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => tab(b.dataset.tab));
+
+/* ---------- ask ---------- */
+const SUGGEST = ["What needs me this week?", "What did I say about the Amazon deadline?", "Who should I not ping again?", "What happened with DawaiGraph?"];
+$("#suggest").innerHTML = SUGGEST.map(q => `<button type="button">${esc(q)}</button>`).join("");
+$("#suggest").querySelectorAll("button").forEach(b => b.onclick = () => { $("#askq").value = b.textContent; $("#askBtn").click(); });
+$("#askBtn").onclick = async () => {
+  const question = $("#askq").value.trim();
+  $("#askErr").hidden = true;
+  if (!question) { $("#askErr").textContent = "Ask something first."; $("#askErr").hidden = false; return; }
+  const btn = $("#askBtn"); btn.disabled = true; btn.textContent = "Looking through your log…";
+  try {
+    const r = await api("/api/ask", {method: "POST", body: JSON.stringify({question})});
+    const when = c => c.at ? (c.at.length > 10 ? new Date(c.at).toLocaleString("en-IN", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : fmtDay(c.at)) : "";
+    $("#answer").innerHTML = r.found
+      ? `<div class="answer"><div class="a">${esc(r.answer)}</div>${r.cites.map(c => `<div class="cite"><span class="chip k-${esc(c.type === "entry" ? "task" : c.type)}">${esc(c.type === "entry" ? "update" : KINDS[c.type] || c.type)}</span><span class="q">${esc(c.quote)}</span><span class="w">${esc([when(c), c.project].filter(Boolean).join(" · "))}</span></div>`).join("")}</div>`
+      : `<div class="answer none"><div class="a">${esc(r.answer)}</div><div class="none-note">Nothing you saved answers this. Capture an update about it first.</div></div>`;
+  } catch (e) {
+    $("#askErr").textContent = e.message; $("#askErr").hidden = false;
+  } finally { btn.disabled = false; btn.textContent = "Ask"; }
+};
 
 /* ---------- capture ---------- */
 $("#say").addEventListener("input", e => {

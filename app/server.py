@@ -15,6 +15,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
+import ask as asker
 import dates
 import drafts
 import extract as ex
@@ -66,6 +67,10 @@ class ReadBody(BaseModel):
     text: str = Field(max_length=ex.MAX_CHARS)
 
 
+class AskBody(BaseModel):
+    question: str = Field(max_length=asker.MAX_QUESTION)
+
+
 class ItemPatch(BaseModel):
     status: str | None = None
     text: str | None = Field(default=None, max_length=300)
@@ -103,6 +108,26 @@ def read(body: ReadBody, request: Request):
     except ex.InputError as e:
         raise HTTPException(422, str(e))
     except ex.ExtractError as e:
+        raise HTTPException(503, str(e))
+
+
+def rate_limit(key):
+    now = time.time()
+    hits = [t for t in recent_reads.get(key, []) if now - t < 3600]
+    if len(hits) >= READS_PER_HOUR:
+        raise HTTPException(429, "That's a lot of requests for one hour. Try again a little later.")
+    recent_reads[key] = hits + [now]
+
+
+@app.post("/api/ask")
+def ask(body: AskBody, request: Request):
+    key, seed, _ = workspace(request)
+    rate_limit(key)
+    try:
+        return asker.ask(body.question, spaces.load(key, seed))
+    except asker.InputError as e:
+        raise HTTPException(422, str(e))
+    except asker.ExtractError as e:
         raise HTTPException(503, str(e))
 
 
