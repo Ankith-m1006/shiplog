@@ -1,5 +1,8 @@
 """Build data/demo.json: a public-safe copy of my real October (14-18 Oct 2026).
 
+Note: data/demo.json also carries two follow-ups and a 20 Oct closing update added by hand after day 2;
+re-running this script drops them.
+
 The updates are my real tracker events, retold the way I'd say them; no secrets, file paths or
 other people's details. Every item quotes its update, and this script fails if a quote isn't in it.
 The PRs are real public PRs, so their status on the Today screen is fetched live from GitHub.

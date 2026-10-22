@@ -43,6 +43,18 @@
  ],
  "entries": [
   {
+   "id": "demo-e5",
+   "at": "2026-10-20T08:00:00+05:30",
+   "text": "Day one of ShipLog is done and pushed. The pt_BR duration PR merged this morning, so no more nudges needed.",
+   "summary": "ShipLog day one shipped; pt_BR PR merged.",
+   "project": "ShipLog",
+   "source": "sample",
+   "items": [
+    "demo-i21",
+    "demo-i22"
+   ]
+  },
+  {
    "id": "demo-e4",
    "at": "2026-10-18T23:30:00+05:30",
    "text": "Submitted DawaiGraph to Graph Hacks with the video and the blog. DEV week one didn't place, lesson noted. Tomorrow I start ShipLog, and Amazon Alexa is due Friday night.",
@@ -260,7 +272,7 @@
    "due": "2026-10-19",
    "project": "ShipLog",
    "who": "",
-   "status": "open",
+   "status": "done",
    "entry": "demo-e4",
    "source": "sample",
    "created": "2026-10-18T23:30:00+05:30"
@@ -351,7 +363,7 @@
    "due": "2026-10-16",
    "project": "Kestra Hacktober",
    "who": "",
-   "status": "open",
+   "status": "done",
    "entry": "demo-e1",
    "source": "sample",
    "created": "2026-10-14T19:10:00+05:30",
@@ -372,6 +384,34 @@
    "created": "2026-10-16T16:40:00+05:30",
    "repo": "kestra-io/plugin-jdbc",
    "number": 1063
+  },
+  {
+   "id": "demo-i21",
+   "kind": "done",
+   "text": "ShipLog day one shipped",
+   "quote": "Day one of ShipLog is done and pushed",
+   "due": null,
+   "project": "ShipLog",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e5",
+   "source": "sample",
+   "created": "2026-10-20T08:00:00+05:30"
+  },
+  {
+   "id": "demo-i22",
+   "kind": "done",
+   "text": "pt_BR duration PR merged",
+   "quote": "The pt_BR duration PR merged this morning",
+   "due": null,
+   "project": "Kestra Hacktober",
+   "who": "",
+   "status": "done",
+   "entry": "demo-e5",
+   "source": "sample",
+   "created": "2026-10-20T08:00:00+05:30",
+   "repo": "kestra-io/kestra",
+   "number": 20735
   }
  ],
  "github": {},
