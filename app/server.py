@@ -221,11 +221,11 @@ def follow_up_draft(item_id: str, request: Request):
 
 
 @app.post("/api/reset")
-def reset(request: Request):
+def reset(request: Request, empty: bool = False):
     key, _, owner = workspace(request)
     if owner:
         raise HTTPException(400, "the real workspace can't be reset to demo data")
-    return spaces.reset(key)
+    return spaces.reset(key, fresh=empty)
 
 
 @app.get("/api/deadlines.ics")

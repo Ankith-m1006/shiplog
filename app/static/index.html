@@ -129,6 +129,8 @@ a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
 .cite .w{grid-column:2;font:400 12px var(--sans);color:var(--muted)}
 .linkbtn{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:12px}
 .linkbtn:hover{text-decoration:underline}
+.demobar{margin:0 0 10px;padding:8px 12px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:6px;font-size:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.demobar .btn{min-height:28px;padding:3px 12px;font-size:12px}
 @media (max-width:480px){ nav{gap:0;justify-content:space-between} nav button{padding:12px 4px 10px} }
 </style>
 </head>
@@ -138,6 +140,7 @@ a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
     <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16h18l-2.5 5h-13z"/><path d="M12 3v10"/><path d="M12 4l6 7h-6"/></svg>ShipLog</div>
     <div class="mode" id="mode"></div>
   </header>
+  <div class="demobar" id="demoBar" hidden></div>
   <nav role="tablist">
     <button role="tab" data-tab="capture" aria-selected="true"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V3a3 3 0 0 1 3-3Zm0 1.5A1.5 1.5 0 0 0 6.5 3v5a1.5 1.5 0 0 0 3 0V3A1.5 1.5 0 0 0 8 1.5ZM3.75 7a.75.75 0 0 1 .75.75 3.5 3.5 0 0 0 7 0 .75.75 0 0 1 1.5 0 5 5 0 0 1-4.25 4.944V14.5h1.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5h1.5v-1.806A5 5 0 0 1 3 7.75.75.75 0 0 1 3.75 7Z"/></svg>Capture</button>
     <button role="tab" data-tab="today" aria-selected="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.75 0a.75.75 0 0 1 .75.75V2h5V.75a.75.75 0 0 1 1.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 0 1 4.75 0ZM2.5 7.5v6.75c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V7.5Zm10.75-4H2.75a.25.25 0 0 0-.25.25V6h11V3.75a.25.25 0 0 0-.25-.25Z"/></svg>Today</button>
@@ -426,9 +429,19 @@ async function load() {
   $("#mode").innerHTML = S.owner ? "<b>My workspace</b><br>real data" : "<b>Demo copy</b><br>yours to try";
   const sel = $("#proj"), cur = sel.value;
   sel.innerHTML = '<option value="">All projects</option>' + S.projects.map(p => `<option ${p.name === cur ? "selected" : ""}>${esc(p.name)}</option>`).join("");
-  $("#demoFoot").innerHTML = S.owner ? "" : `This is your own copy, seeded with a public-safe version of one developer's real October. Anything you save stays in this browser's copy. <button class="linkbtn" id="reset">Reset the demo</button>`;
+  const sample = !S.owner && S.entries.some(e => e.source === "sample");
+  const bar = $("#demoBar");
+  bar.hidden = S.owner;
+  bar.innerHTML = S.owner ? "" : sample
+    ? `<span>You're looking at the builder's real October (a public-safe copy that only you see). Try it with your own work:</span><button class="btn" id="fresh">Start with an empty log</button>`
+    : `<span>Your own empty log. Nothing you save here is shared.</span><button class="btn ghost" id="sampleBack">Show the sample again</button>`;
+  const fresh = $("#fresh");
+  if (fresh) fresh.onclick = async () => { await api("/api/reset?empty=true", {method: "POST"}); await load(); render(); tab("capture"); toast("Empty log ready. Talk through your first update."); };
+  const back = $("#sampleBack");
+  if (back) back.onclick = async () => { await api("/api/reset", {method: "POST"}); await load(); render(); toast("Sample restored"); };
+  $("#demoFoot").innerHTML = S.owner ? "" : `This is your own copy. Anything you save stays in this browser's copy. <button class="linkbtn" id="reset">Reset to the sample</button>`;
   const r = $("#reset");
-  if (r) r.onclick = async () => { if (!r.dataset.armed) { r.dataset.armed = 1; r.textContent = "Tap again to reset"; return; } await api("/api/reset", {method: "POST"}); await load(); render(); toast("Demo reset"); };
+  if (r) r.onclick = async () => { if (!r.dataset.armed) { r.dataset.armed = 1; r.textContent = "Tap again to reset"; return; } await api("/api/reset", {method: "POST"}); await load(); render(); toast("Sample restored"); };
 }
 load().then(render).catch(e => { $("#mode").textContent = e.message; });
 </script>
