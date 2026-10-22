@@ -5,123 +5,143 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ShipLog</title>
 <meta name="description" content="Talk through your work. ShipLog keeps the log, the deadlines and the follow-ups.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* Styled on Primer, GitHub's open-source design system (primer.style): its colour tokens, type scale and
+   components (UnderlineNav, Label, State, Button, Box), so ShipLog feels at home next to the PRs it tracks. */
 :root{
-  --bg:#ffffff; --paper:#f6f6f3; --ink:#16181d; --muted:#6a6f78; --line:#e6e6e1;
-  --ship:#0d7a5f; --ship-soft:#e3f3ed; --due:#b25e09; --due-soft:#fbefdf; --late:#b3261e; --late-soft:#fbe7e5;
-  --rule:#5b3cc4; --rule-soft:#eee9fb; --pr:#1f5fbf; --pr-soft:#e6eefb;
+  --bg:#ffffff; --paper:#f6f8fa; --ink:#1f2328; --muted:#59636e; --line:#d1d9e0; --line-soft:#d1d9e0b3;
+  --accent:#0969da; --accent-soft:#ddf4ff;
+  --ship:#1a7f37; --ship-soft:#dafbe1; --due:#9a6700; --due-soft:#fff8c5; --late:#d1242f; --late-soft:#ffebe9;
+  --rule:#8250df; --rule-soft:#fbefff; --pr:#0969da; --pr-soft:#ddf4ff;
+  --btn:#1f883d; --btn-hover:#1c8139; --btn-ink:#ffffff; --btn2:#f6f8fa; --btn2-hover:#eff2f5;
+  --open:#1f883d; --merged:#8250df; --closed:#cf222e; --neutral:#59636e;
+  --shadow:0 1px 0 #1f23280a; --focus:#0969da; --tab:#fd8c73;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#111316; --paper:#1a1d21; --ink:#eceef1; --muted:#9aa0a9; --line:#2a2e34;
-  --ship:#4cc59f; --ship-soft:#173229; --due:#f0a24b; --due-soft:#33261a; --late:#ff7b70; --late-soft:#3a1d1b;
-  --rule:#ae98ff; --rule-soft:#262040; --pr:#7fb0ff; --pr-soft:#1b2639;
+  --bg:#0d1117; --paper:#151b23; --ink:#f0f6fc; --muted:#9198a1; --line:#3d444d; --line-soft:#3d444db3;
+  --accent:#4493f8; --accent-soft:#388bfd1a;
+  --ship:#3fb950; --ship-soft:#2ea04326; --due:#d29922; --due-soft:#bb800926; --late:#f85149; --late-soft:#f8514926;
+  --rule:#ab7df8; --rule-soft:#ab7df826; --pr:#4493f8; --pr-soft:#388bfd1a;
+  --btn:#238636; --btn-hover:#29903b; --btn-ink:#ffffff; --btn2:#212830; --btn2-hover:#262c36;
+  --open:#238636; --merged:#8957e5; --closed:#da3633; --neutral:#656c76;
+  --shadow:none; --focus:#1f6feb; --tab:#f78166;
 }}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
-.wrap{max-width:720px;margin:0 auto;padding:0 16px 96px}
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 0 10px}
-.brand{font:700 24px/1 "Bricolage Grotesque",sans-serif;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
-.brand i{width:10px;height:10px;border-radius:50%;background:var(--ship);display:inline-block}
+:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 96px}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 0 8px}
+.brand{font:600 20px/1 var(--sans);display:flex;align-items:center;gap:8px}
+.brand svg{width:24px;height:24px}
 .mode{font-size:12px;color:var(--muted);text-align:right}
 .mode b{color:var(--ink);font-weight:600}
-nav{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:4px;padding:6px 0 10px;border-bottom:1px solid var(--line)}
-nav button{flex:1;border:0;background:none;padding:10px 4px;border-radius:10px;font-weight:600;color:var(--muted);cursor:pointer}
-nav button[aria-selected=true]{background:var(--paper);color:var(--ink)}
-section{display:none;padding-top:18px}
+nav{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;gap:8px;box-shadow:inset 0 -1px 0 var(--line)}
+nav button{border:0;background:none;padding:12px 8px 10px;font-weight:400;color:var(--ink);cursor:pointer;border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;font-size:14px}
+nav button svg{width:16px;height:16px;color:var(--muted)}
+nav button:hover{border-bottom-color:var(--line)}
+nav button[aria-selected=true]{font-weight:600;border-bottom-color:var(--tab)}
+section{display:none;padding-top:16px}
 section.on{display:block}
-h2{font:700 20px/1.2 "Bricolage Grotesque",sans-serif;margin:22px 0 10px;letter-spacing:-.01em}
-h2 small{font:500 13px Inter,sans-serif;color:var(--muted);margin-left:6px}
+h2{font:600 16px/1.5 var(--sans);margin:24px 0 8px;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+h2 small{font:400 12px var(--sans);color:var(--muted)}
 .lead{color:var(--muted);margin:0 0 12px}
-textarea#say{width:100%;min-height:150px;border:1.5px solid var(--line);border-radius:16px;padding:16px;background:var(--paper);resize:vertical;font-size:17px}
-textarea#say:focus{outline:none;border-color:var(--ink)}
-.hint{font-size:13px;color:var(--muted);margin:8px 2px}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:600;cursor:pointer;background:var(--ink);color:var(--bg)}
-.btn.ghost{background:var(--paper);color:var(--ink)}
-.btn:disabled{opacity:.5;cursor:wait}
-.btn.full{width:100%}
-.card{border:1px solid var(--line);border-radius:16px;padding:14px;margin:10px 0;background:var(--bg)}
-.chip{display:inline-block;font:500 11px/1 "JetBrains Mono",monospace;text-transform:lowercase;padding:5px 7px;border-radius:6px;white-space:nowrap}
-.k-done{background:var(--ship-soft);color:var(--ship)} .k-task,.k-followup{background:var(--paper);color:var(--ink)}
-.k-deadline{background:var(--due-soft);color:var(--due)} .k-rule{background:var(--rule-soft);color:var(--rule)} .k-pr{background:var(--pr-soft);color:var(--pr)}
-.src{font:500 11px "JetBrains Mono",monospace;color:var(--muted)}
-.st{font:600 11px/1 "JetBrains Mono",monospace;padding:5px 7px;border-radius:6px;white-space:nowrap}
-.st-merged{background:var(--ship-soft);color:var(--ship)} .st-open,.st-draft{background:var(--pr-soft);color:var(--pr)}
-.st-closed,.st-unknown{background:var(--paper);color:var(--muted)}
-.draft{margin-top:8px;padding:12px;border-radius:12px;background:var(--paper);font-size:14px;white-space:pre-wrap}
-.draft.blocked{background:var(--rule-soft);color:var(--rule)}
-.quote{font-size:13px;color:var(--muted);margin-top:6px}
+textarea#say,textarea#askq{width:100%;min-height:150px;border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--bg);resize:vertical;font-size:16px;line-height:1.5}
+textarea#askq{min-height:84px}
+textarea#say:focus,textarea#askq:focus{outline:none;border-color:var(--focus);box-shadow:inset 0 0 0 1px var(--focus)}
+.hint{font-size:12px;color:var(--muted);margin:6px 2px 10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.btn{border:1px solid #1f232826;border-radius:6px;padding:5px 16px;min-height:32px;font-weight:500;cursor:pointer;background:var(--btn);color:var(--btn-ink);box-shadow:var(--shadow)}
+.btn:hover{background:var(--btn-hover)}
+.btn.ghost{background:var(--btn2);color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{background:var(--btn2-hover)}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.full{width:100%;min-height:40px}
+.card{border:1px solid var(--line);border-radius:6px;padding:0 16px;margin:8px 0;background:var(--bg)}
+.chip{display:inline-flex;align-items:center;font:500 12px/18px var(--sans);padding:0 7px;border:1px solid var(--line);border-radius:2em;white-space:nowrap;background:transparent;color:var(--muted)}
+.k-done{border-color:var(--ship);color:var(--ship)} .k-task,.k-followup{border-color:var(--line);color:var(--muted)}
+.k-deadline{border-color:var(--due);color:var(--due)} .k-rule{border-color:var(--rule);color:var(--rule)} .k-pr{border-color:var(--pr);color:var(--pr)}
+.src{font:400 12px var(--sans);color:var(--muted)}
+.st{display:inline-flex;align-items:center;gap:4px;font:500 12px/1 var(--sans);padding:5px 10px;border-radius:2em;white-space:nowrap;color:#fff;text-transform:capitalize}
+.st-merged{background:var(--merged)} .st-open{background:var(--open)} .st-draft,.st-unknown{background:var(--neutral)} .st-closed{background:var(--closed)}
+.draft{margin-top:8px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--paper);font-size:14px;white-space:pre-wrap}
+.draft.blocked{background:var(--rule-soft);border-color:var(--rule)}
+.quote{font-size:12px;color:var(--muted);margin-top:4px}
 .quote::before{content:"you said: ";font-weight:600}
-.flag{font-size:13px;color:var(--due);margin-top:4px}
-.item{display:grid;grid-template-columns:auto 1fr auto;gap:8px 10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
+.flag{font-size:12px;color:var(--due);margin-top:4px}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
 .item:first-of-type{border-top:0}
-.item textarea{width:100%;border:1px solid transparent;border-radius:8px;padding:4px 6px;margin:-4px -6px;background:none;resize:none;field-sizing:content;min-height:1.6em;line-height:1.4;overflow:hidden}
-.item textarea:focus{border-color:var(--line);outline:none;background:var(--paper)}
-.item select{border:0;background:none;padding:0;font:500 11px "JetBrains Mono",monospace}
-.item .meta{grid-column:2/4;display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--muted)}
-.item input[type=date]{border:1px solid var(--line);border-radius:8px;padding:3px 6px;background:var(--paper);font-size:13px}
-.x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:0 4px}
-.summary{font:600 17px/1.35 Inter,sans-serif;width:100%;border:0;background:none;padding:0;margin:0 0 6px;resize:none;field-sizing:content}
-.dropped{font-size:13px;color:var(--late);background:var(--late-soft);border-radius:10px;padding:10px 12px;margin-top:10px}
-.task{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
-.task:first-child{border-top:0}
-.task input[type=checkbox]{width:20px;height:20px;margin-top:2px;accent-color:var(--ship);flex:none}
-.task .t{flex:1}
-.task .when{font:500 12px "JetBrains Mono",monospace;white-space:nowrap;padding-top:3px}
+.item textarea{width:100%;border:1px solid transparent;border-radius:6px;padding:3px 6px;margin:-3px -6px;background:none;resize:none;field-sizing:content;min-height:1.6em;line-height:1.5;overflow:hidden}
+.item textarea:focus{border-color:var(--focus);outline:none;background:var(--bg)}
+.item select{border:1px solid var(--line);border-radius:2em;padding:0 6px;font:500 12px/18px var(--sans);background:var(--bg)}
+.item .meta{grid-column:2/4;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.item input[type=date]{border:1px solid var(--line);border-radius:6px;padding:2px 6px;background:var(--bg);font-size:12px}
+.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 4px;border-radius:6px}
+.x:hover{background:var(--btn2-hover);color:var(--ink)}
+.summary{font:600 16px/1.4 var(--sans);width:100%;border:0;background:none;padding:12px 0 4px;margin:0;resize:none;field-sizing:content}
+.dropped{font-size:12px;background:var(--late-soft);border:1px solid var(--late);border-radius:6px;padding:8px 12px;margin:0 0 12px}
+.task{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-soft)}
+.card > .task:first-child{border-top:0}
+.task input[type=checkbox]{width:16px;height:16px;margin-top:3px;accent-color:var(--accent);flex:none}
+.task .t{flex:1;min-width:0}
+.card > .row{margin:-4px 0 10px 26px}
+.card > [id^=d-]{margin:0 0 10px 26px}
+.task .t a{font-weight:600}
+.task .when{font:500 12px var(--sans);white-space:nowrap;padding-top:2px}
 .when.late{color:var(--late)} .when.soon{color:var(--due)} .when.later{color:var(--muted)}
 .task.done .t{color:var(--muted);text-decoration:line-through}
-.sub{font-size:13px;color:var(--muted)}
-.empty{color:var(--muted);font-size:14px;padding:6px 0}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 6px}
-.stat{background:var(--paper);border-radius:14px;padding:12px}
-.stat b{display:block;font:700 26px/1 "Bricolage Grotesque",sans-serif}
+.sub{font-size:12px;color:var(--muted);margin-top:2px}
+.empty{color:var(--muted);font-size:14px;padding:16px;border:1px dashed var(--line);border-radius:6px;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 8px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:12px}
+.stat b{display:block;font:600 24px/1.2 var(--sans)}
 .stat span{font-size:12px;color:var(--muted)}
-.stat.late b{color:var(--late)} .stat.soon b{color:var(--due)}
-.entry{border-top:1px solid var(--line);padding:14px 0}
+.stat.late b{color:var(--late)} .stat.soon b{color:var(--due)} .stat:last-child b{color:var(--ship)}
+#entries{border:1px solid var(--line);border-radius:6px;padding:0 16px}
+#entries:has(> .empty){border:0;padding:0}
+.entry{border-top:1px solid var(--line);padding:12px 0}
+.entry:first-child{border-top:0}
 .entry .top{display:flex;justify-content:space-between;gap:10px}
-.entry time{font:500 12px "JetBrains Mono",monospace;color:var(--muted);white-space:nowrap}
+.entry time{font:400 12px var(--sans);color:var(--muted);white-space:nowrap}
 .entry details{margin-top:6px;font-size:14px}
-.entry summary{cursor:pointer;color:var(--muted);font-size:13px}
-.entry blockquote{margin:8px 0;padding:10px 12px;background:var(--paper);border-radius:10px;font-size:14px}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.chips .chip{text-transform:none;font-family:Inter,sans-serif;font-size:12px}
-.filters{display:flex;gap:8px;margin-bottom:6px}
-.filters input,.filters select{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--paper)}
-a{color:var(--pr)}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.entry summary{cursor:pointer;color:var(--accent);font-size:12px}
+.entry blockquote{margin:8px 0;padding:0 12px;border-left:4px solid var(--line);color:var(--muted);font-size:14px}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.filters{display:flex;gap:8px;margin-bottom:12px}
+.filters input,.filters select{flex:1;min-width:0;border:1px solid var(--line);border-radius:6px;padding:5px 12px;min-height:32px;background:var(--bg)}
+.filters input:focus,.filters select:focus{outline:none;border-color:var(--focus);box-shadow:inset 0 0 0 1px var(--focus)}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:6px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
 .toast.on{opacity:1}
-.err{color:var(--late);font-size:14px;margin-top:8px}
-.foot{margin-top:28px;font-size:13px;color:var(--muted)}
-textarea#askq{width:100%;min-height:84px;border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;background:var(--paper);resize:vertical;font-size:17px}
-textarea#askq:focus{outline:none;border-color:var(--ink)}
+.err{color:var(--late);font-size:12px;margin-top:8px}
+.foot{margin-top:24px;font-size:12px;color:var(--muted)}
 .suggest{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px}
-.suggest button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer}
-.answer{border:1px solid var(--line);border-radius:16px;padding:16px;margin:14px 0}
-.answer .a{font-size:17px;line-height:1.45}
+.suggest button{border:1px solid var(--line);background:var(--btn2);border-radius:2em;padding:2px 10px;font-size:12px;cursor:pointer}
+.suggest button:hover{background:var(--btn2-hover)}
+.answer{border:1px solid var(--line);border-radius:6px;margin:14px 0;overflow:hidden}
+.answer .a{font-size:16px;line-height:1.5;padding:12px 16px}
 .answer.none{background:var(--paper)}
-.answer .none-note{font-size:13px;color:var(--muted);margin-top:6px}
-.cite{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
-.cite:first-of-type{margin-top:12px}
-.cite .q{color:var(--ink)}
+.answer .none-note{font-size:12px;color:var(--muted);padding:0 16px 12px}
+.cite{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:10px 16px;border-top:1px solid var(--line);font-size:14px;background:var(--paper)}
 .cite .q::before{content:"you said: ";font-weight:600;color:var(--muted)}
-.cite .w{grid-column:2;font:500 12px "JetBrains Mono",monospace;color:var(--muted)}
-.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0;font-size:13px}
+.cite .w{grid-column:2;font:400 12px var(--sans);color:var(--muted)}
+.linkbtn{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:12px}
+.linkbtn:hover{text-decoration:underline}
+@media (max-width:480px){ nav{gap:0;justify-content:space-between} nav button{padding:12px 4px 10px} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><i></i>ShipLog</div>
+    <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16h18l-2.5 5h-13z"/><path d="M12 3v10"/><path d="M12 4l6 7h-6"/></svg>ShipLog</div>
     <div class="mode" id="mode"></div>
   </header>
   <nav role="tablist">
-    <button role="tab" data-tab="capture" aria-selected="true">Capture</button>
-    <button role="tab" data-tab="today" aria-selected="false">Today</button>
-    <button role="tab" data-tab="log" aria-selected="false">Log</button>
-    <button role="tab" data-tab="ask" aria-selected="false">Ask</button>
+    <button role="tab" data-tab="capture" aria-selected="true"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V3a3 3 0 0 1 3-3Zm0 1.5A1.5 1.5 0 0 0 6.5 3v5a1.5 1.5 0 0 0 3 0V3A1.5 1.5 0 0 0 8 1.5ZM3.75 7a.75.75 0 0 1 .75.75 3.5 3.5 0 0 0 7 0 .75.75 0 0 1 1.5 0 5 5 0 0 1-4.25 4.944V14.5h1.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5h1.5v-1.806A5 5 0 0 1 3 7.75.75.75 0 0 1 3.75 7Z"/></svg>Capture</button>
+    <button role="tab" data-tab="today" aria-selected="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4.75 0a.75.75 0 0 1 .75.75V2h5V.75a.75.75 0 0 1 1.5 0V2h1.25c.966 0 1.75.784 1.75 1.75v10.5A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25V3.75C1 2.784 1.784 2 2.75 2H4V.75A.75.75 0 0 1 4.75 0ZM2.5 7.5v6.75c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25V7.5Zm10.75-4H2.75a.25.25 0 0 0-.25.25V6h11V3.75a.25.25 0 0 0-.25-.25Z"/></svg>Today</button>
+    <button role="tab" data-tab="log" aria-selected="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"/></svg>Log</button>
+    <button role="tab" data-tab="ask" aria-selected="false"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"/></svg>Ask</button>
   </nav>
 
   <section id="capture" class="on">
@@ -329,11 +349,17 @@ async function makeDraft(id) {
     if (c) c.onclick = async () => { await navigator.clipboard.writeText(d.draft); toast("Copied"); };
   } catch (e) { box.innerHTML = `<div class="draft">${esc(e.message)}</div>`; }
 }
+const PR_ICONS = {
+  open: '<path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/>',
+  merged: '<path d="M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z"/>',
+  closed: '<path d="M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.273a.75.75 0 0 1 1.06 0l.97.97.97-.97a.748.748 0 0 1 1.265.332.75.75 0 0 1-.205.729l-.97.97.97.97a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-.97-.97-.97.97a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l.97-.97-.97-.97a.75.75 0 0 1 0-1.06ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"/>',
+};
+const prIcon = st => PR_ICONS[st] ? `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">${PR_ICONS[st]}</svg>` : "";
 function prRow(w, live) {
   const s = live || {state: "checking", detail: "checking GitHub…"};
   return `<div class="task"><div class="t"><a href="https://github.com/${esc(w.repo)}/pull/${w.number}" target="_blank" rel="noopener">${esc(w.repo)}#${w.number}</a>${s.title ? " " + esc(s.title) : ""}
     <div class="sub">${esc(s.detail || "")}${s.checked ? ` · <span class="src">GitHub, checked ${esc(s.checked)}</span>` : ""} · <span class="src">${src(w)}</span></div></div>
-    <span class="st st-${esc(s.state === "checking" ? "unknown" : s.state)}">${esc(s.state)}</span></div>`;
+    <span class="st st-${esc(s.state === "checking" ? "unknown" : s.state)}">${prIcon(s.state)}${esc(s.state)}</span></div>`;
 }
 async function loadGithub() {
   if (!S.watch.length) return;
