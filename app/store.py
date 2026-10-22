@@ -78,8 +78,8 @@ class Workspaces:
             self.cache[key] = doc
             self.backend.put(key, doc)
 
-    def reset(self, key):
-        doc = demo()
+    def reset(self, key, fresh=False):
+        doc = empty() if fresh else demo()
         self.save(key, doc)
         return doc
 
