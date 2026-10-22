@@ -8,11 +8,13 @@ import hmac
 import os
 import pathlib
 import re
+import secrets
 import time
+import urllib.parse
 import uuid
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 import ask as asker
@@ -26,14 +28,17 @@ STATIC = pathlib.Path(__file__).resolve().parent / "static"
 KEY_RE = re.compile(r"^w[a-z0-9]{10,40}$")
 OWNER_KEY = os.environ.get("SHIPLOG_OWNER_KEY", "")
 READS_PER_HOUR = 40
+GH_ID = os.environ.get("GITHUB_CLIENT_ID", "")
+GH_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
+oauth_states = {}  # state -> (workspace key, started at); one instance, so memory is enough
 
 app = FastAPI(title="ShipLog")
 spaces = Workspaces()
 recent_reads = {}
 
 
-def workspace(request: Request, key=None):
-    key = key or request.headers.get("X-Workspace", "")
+def workspace(request: Request | None, key=None):
+    key = key or (request.headers.get("X-Workspace", "") if request else "")
     if not KEY_RE.match(key):
         raise HTTPException(400, "missing or malformed X-Workspace")
     owner = bool(OWNER_KEY) and hmac.compare_digest(key, OWNER_KEY)
@@ -90,7 +95,12 @@ def valid_day(s):
 def state(request: Request):
     key, seed, owner = workspace(request)
     doc = spaces.load(key, seed)
-    return {**doc, "owner": owner, "today": dates.now().date().isoformat()}
+    public = {k: v for k, v in doc.items() if k != "secrets"}  # the GitHub token never leaves the server
+    return {**public, "owner": owner, "today": dates.now().date().isoformat(), "github_enabled": bool(GH_ID)}
+
+
+def known_repos(doc):
+    return sorted({w["repo"] for w in doc["watch"]} | set((doc.get("github_user") or {}).get("repos", [])))
 
 
 @app.post("/api/read")
@@ -102,7 +112,7 @@ def read(body: ReadBody, request: Request):
         raise HTTPException(429, "That's a lot of updates for one hour. Try again a little later.")
     recent_reads[key] = hits + [now]
     doc = spaces.load(key, seed)
-    repos = sorted({w["repo"] for w in doc["watch"]})
+    repos = known_repos(doc)
     try:
         return ex.extract(body.text, [p["name"] for p in doc["projects"]], repos)
     except ex.InputError as e:
@@ -226,6 +236,62 @@ def reset(request: Request, empty: bool = False):
     if owner:
         raise HTTPException(400, "the real workspace can't be reset to demo data")
     return spaces.reset(key, fresh=empty)
+
+
+@app.get("/auth/github/start")
+def github_start(w: str = ""):
+    """OAuth web flow, step 1: send the visitor to GitHub's own consent page (read-only scope)."""
+    if not GH_ID:
+        raise HTTPException(503, "GitHub sign-in isn't set up on this server yet.")
+    key, _, _ = workspace(None, w)
+    now = time.time()
+    for st, (_, at) in list(oauth_states.items()):
+        if now - at > 600:
+            oauth_states.pop(st, None)
+    state = secrets.token_urlsafe(24)
+    oauth_states[state] = (key, now)
+    query = urllib.parse.urlencode({"client_id": GH_ID, "scope": "read:user", "state": state, "allow_signup": "true"})
+    return RedirectResponse(f"https://github.com/login/oauth/authorize?{query}")
+
+
+@app.get("/auth/github/callback")
+def github_callback(code: str = "", state: str = "", error: str = ""):
+    key, at = oauth_states.pop(state, (None, 0))
+    if not key or time.time() - at > 600:
+        return RedirectResponse("/?github=expired")
+    if error or not code:
+        return RedirectResponse("/?github=cancelled")
+    try:
+        token = github.exchange(GH_ID, GH_SECRET, code)
+        me = github.profile(token)
+    except Exception:  # a failed sign-in is reported on the page, never as a server error
+        return RedirectResponse("/?github=failed")
+    _, seed, _ = workspace(None, key)
+
+    def apply(doc):
+        doc["github_user"] = {"login": me["login"], "name": me["name"], "avatar": me["avatar"], "repos": me["repos"],
+                              "connected": stamp()}
+        doc.setdefault("secrets", {})["github_token"] = token
+        have = {(w["repo"], w["number"]) for w in doc["watch"]}
+        added = [p for p in me["prs"] if (p["repo"], p["number"]) not in have]
+        doc["watch"] += [{"repo": p["repo"], "number": p["number"], "source": "github"} for p in added]
+        return len(added)
+
+    added = spaces.edit(key, apply, seed)
+    return RedirectResponse(f"/?github=connected&prs={added}")
+
+
+@app.post("/api/github/disconnect")
+def github_disconnect(request: Request):
+    key, seed, _ = workspace(request)
+
+    def apply(doc):
+        doc.pop("github_user", None)
+        doc.pop("secrets", None)
+        doc["watch"] = [w for w in doc["watch"] if w.get("source") != "github"]
+        return {"ok": True}
+
+    return spaces.edit(key, apply, seed)
 
 
 @app.get("/api/deadlines.ics")
