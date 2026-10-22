@@ -20,12 +20,37 @@ _cache = {}
 _lock = threading.Lock()
 
 
-def _get(path):
+def _get(path, token=None):
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "ShipLog", "X-GitHub-Api-Version": "2022-11-28"}
-    if TOKEN:
-        headers["Authorization"] = f"Bearer {TOKEN}"
+    if token or TOKEN:
+        headers["Authorization"] = f"Bearer {token or TOKEN}"
     with urllib.request.urlopen(urllib.request.Request(API + path, headers=headers), timeout=15) as resp:
         return json.loads(resp.read())
+
+
+def exchange(client_id, client_secret, code):
+    """OAuth web flow, step 2: trade the code GitHub sent back for an access token."""
+    body = json.dumps({"client_id": client_id, "client_secret": client_secret, "code": code}).encode()
+    req = urllib.request.Request("https://github.com/login/oauth/access_token", body,
+                                 {"Accept": "application/json", "Content-Type": "application/json", "User-Agent": "ShipLog"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+    if not data.get("access_token"):
+        raise ValueError(data.get("error_description") or "GitHub didn't return a token")
+    return data["access_token"]
+
+
+def profile(token):
+    """Who connected, their recently pushed public repos, and their open pull requests (read-only)."""
+    me = _get("/user", token)
+    repos = [r["full_name"] for r in _get("/user/repos?sort=pushed&per_page=50&type=owner", token) if not r.get("private")]
+    login = me["login"]
+    found = _get(f"/search/issues?q=is:pr+is:open+archived:false+author:{login}&per_page=30&sort=updated", token)
+    prs = []
+    for it in found.get("items", []):
+        repo = it["repository_url"].split("/repos/", 1)[1]
+        prs.append({"repo": repo, "number": it["number"], "title": it.get("title", "")})
+    return {"login": login, "name": me.get("name") or login, "avatar": me.get("avatar_url", ""), "repos": repos, "prs": prs}
 
 
 def _review(reviews):
