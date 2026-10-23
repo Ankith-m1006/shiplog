@@ -16,7 +16,7 @@ from extract import ExtractError, InputError, ask_model_raw, norm
 KINDS = {
     "standup": {"days": 1, "title": "Stand-up",
                 "how": "A stand-up in three short labelled parts: 'Yesterday:', 'Today:', 'Blocked / waiting:'. "
-                       "One line per point, at most 4 points per part, first person, no fluff."},
+                       "One line per point, at most 4 points per part, first person, no fluff. Leave out a part that has nothing in it; put upcoming deadlines under 'Today:'."},
     "weekly": {"days": 7, "title": "Weekly report",
                "how": "A weekly report with short sections 'Shipped', 'In progress', 'Next', 'Watch out' "
                       "(rules and blockers). Bullet points, first person, concrete, at most 12 bullets in total."},
