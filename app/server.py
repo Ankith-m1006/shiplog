@@ -21,6 +21,7 @@ import ask as asker
 import dates
 import drafts
 import extract as ex
+import flowwords
 import github
 import speech
 from store import Workspaces
@@ -87,6 +88,11 @@ class AskBody(BaseModel):
     question: str = Field(max_length=asker.MAX_QUESTION)
 
 
+class FlowWord(BaseModel):
+    word: str = Field(min_length=2, max_length=60)
+    remove: bool = False
+
+
 class ItemPatch(BaseModel):
     status: str | None = None
     text: str | None = Field(default=None, max_length=300)
@@ -126,11 +132,34 @@ def read(body: ReadBody, request: Request):
     repos = known_repos(doc)
     try:
         log = [i for i in reversed(doc["items"]) if i.get("status") == "open"]
-        return ex.extract(body.text, [p["name"] for p in doc["projects"]], repos, log=log)
+        out = ex.extract(body.text, [p["name"] for p in doc["projects"]], repos, log=log)
+        out["heard"] = flowwords.misheard(body.text, flowwords.known_terms(doc))
+        return out
     except ex.InputError as e:
         raise HTTPException(422, str(e))
     except ex.ExtractError as e:
         raise HTTPException(503, str(e))
+
+
+@app.get("/api/flow")
+def flow(request: Request):
+    key, seed, _ = workspace(request)
+    return flowwords.tune_up(spaces.load(key, seed))
+
+
+@app.post("/api/flow/words")
+def flow_words(body: FlowWord, request: Request):
+    key, seed, _ = workspace(request)
+    word = re.sub(r"\s+", " ", body.word).strip()
+
+    def apply(doc):
+        words = [w for w in doc.get("flow_words", []) if w.lower() != word.lower()]
+        if not body.remove:
+            words.append(word)
+        doc["flow_words"] = words[-200:]
+        return {"my_words": doc["flow_words"]}
+
+    return spaces.edit(key, apply, seed)
 
 
 def rate_limit(key):
