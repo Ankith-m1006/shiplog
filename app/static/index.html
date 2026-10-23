@@ -68,6 +68,15 @@ textarea#say:focus,textarea#askq:focus{outline:none;border-color:var(--focus);bo
 .draft{margin-top:8px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--paper);font-size:14px;white-space:pre-wrap}
 .draft.blocked{background:var(--rule-soft);border-color:var(--rule)}
 .quote{font-size:12px;color:var(--muted);margin-top:4px}
+.speak{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip.fix{color:var(--accent);border-color:var(--accent)}
+.chip.unsure{color:var(--due);border-color:var(--due)}
+.chip.urgent{color:var(--late);border-color:var(--late);font-weight:600}
+.takeback{font-size:12px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:8px 12px;margin:0 0 12px}
+.capbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.auto{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+.auto input{margin:0}
+.saytime{font-size:12px;color:var(--muted);margin:-4px 0 10px}
 .quote::before{content:"you said: ";font-weight:600}
 .flag{font-size:12px;color:var(--due);margin-top:4px}
 .item{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:start;padding:12px 0;border-top:1px solid var(--line)}
@@ -165,9 +174,9 @@ header .right{display:flex;align-items:center;gap:12px}
   </nav>
 
   <section id="capture" class="on">
-    <p class="lead">Talk through what happened. ShipLog pulls out what's done, what's due and who to chase, and you check it before anything is saved.</p>
+    <p class="lead">Talk through your day for as long as you like. ShipLog pulls out what's done, what's due and who to chase, keeps your corrections ("Tuesday, no wait, Wednesday") and take-backs ("scratch that"), and you check it before anything is saved.</p>
     <textarea id="say" placeholder="Tap here, hold your Wispr Flow key, and talk. For example: &quot;Pushed the review fixes on PR 1063. The Amazon submission is due Friday night. Don't ping the reviewer again.&quot;"></textarea>
-    <div class="hint" id="count">Dictated with Wispr Flow, typed or pasted: all work.</div>
+    <div class="capbar"><div class="hint" id="count">Hold your Wispr Flow key and talk. Typing works too.</div><label class="auto"><input type="checkbox" id="auto" checked> Read it when Flow finishes</label></div>
     <button class="btn full" id="read">Read it</button>
     <div class="err" id="readErr" hidden></div>
     <div id="review"></div>
@@ -276,12 +285,27 @@ $("#askBtn").onclick = async () => {
 };
 
 /* ---------- capture ---------- */
+/* Flow types a whole utterance in one go; a keyboard adds a character at a time. When text arrives
+   in a burst and then stops, the speaker has let go of the Flow key: read it without a tap. */
+let lastLen = 0, burst = false, autoTimer = null;
+try { $("#auto").checked = localStorage.getItem("shiplog.auto") !== "off"; } catch (e) {}
+$("#auto").onchange = e => { try { localStorage.setItem("shiplog.auto", e.target.checked ? "on" : "off"); } catch (x) {} };
 $("#say").addEventListener("input", e => {
-  const w = e.target.value.trim().split(/\s+/).filter(Boolean).length;
-  $("#count").textContent = w ? w + " words" : "Dictated with Wispr Flow, typed or pasted: all work.";
+  const v = e.target.value, w = v.trim().split(/\s+/).filter(Boolean).length;
+  if (v.length - lastLen >= 12) burst = true;
+  lastLen = v.length;
+  clearTimeout(autoTimer);
+  $("#count").textContent = w ? w + " words" : "Hold your Wispr Flow key and talk. Typing works too.";
+  if (burst && w >= 4 && $("#auto").checked && !$("#read").disabled) {
+    $("#count").textContent = w + " words · Flow finished, reading in a moment…";
+    autoTimer = setTimeout(() => { burst = false; $("#read").click(); }, 1800);
+  }
 });
+$("#say").addEventListener("keydown", () => { clearTimeout(autoTimer); burst = false; });
 $("#read").onclick = async () => {
+  clearTimeout(autoTimer); burst = false;
   const text = $("#say").value.trim();
+  if (draft && text === sourceText) return;  // already read; nothing new was said
   $("#readErr").hidden = true;
   if (!text) { $("#say").focus(); return; }
   $("#read").disabled = true; $("#read").textContent = "Reading…";
@@ -293,6 +317,15 @@ $("#read").onclick = async () => {
   finally { $("#read").disabled = false; $("#read").textContent = "Read it"; }
 };
 
+function dur(s) { return s < 60 ? s + " s" : Math.floor(s / 60) + " min" + (s % 60 >= 30 ? " 30 s" : ""); }
+function speakChips(it) {
+  const c = [];
+  if (it.corrected) c.push(`<span class="chip fix">you corrected “${esc(it.corrected.from)}” to “${esc(it.corrected.to)}”</span>`);
+  if (it.said_number) c.push(`<span class="chip fix">heard “${esc(it.said_number)}” as #${it.number}</span>`);
+  if (it.unsure) c.push(`<span class="chip unsure">you said “${esc(it.unsure)}”: still unsure?</span>`);
+  if (it.urgent) c.push(`<span class="chip urgent">urgent: “${esc(it.urgent)}”</span>`);
+  return c.length ? `<div class="speak">${c.join("")}</div>` : "";
+}
 function renderReview() {
   const box = $("#review");
   if (!draft) { box.innerHTML = ""; return; }
@@ -310,15 +343,20 @@ function renderReview() {
       </div>
       <div style="grid-column:2/4">
         <div class="quote">“${esc(it.quote)}”</div>
+        ${speakChips(it)}
         ${it.flags.map(f => `<div class="flag">Check: ${esc(f)}</div>`).join("")}
       </div>
     </div>`).join("");
+  const taken = draft.dropped.filter(d => d.taken_back), lost = draft.dropped.filter(d => !d.taken_back);
+  const sp = draft.speech;
   box.innerHTML = `
     <h2>Here's what I understood <small>edit anything, then save</small></h2>
+    ${sp && sp.words ? `<div class="saytime">${sp.words} words: about ${dur(sp.talk_s)} to say, ${dur(sp.type_s)} to type.</div>` : ""}
     <div class="card">
       <textarea class="summary" id="sum" rows="2" aria-label="summary">${esc(draft.summary)}</textarea>
       ${items || '<div class="empty">Nothing to save from that update.</div>'}
-      ${draft.dropped.length ? `<div class="dropped"><b>Left out, couldn't trace to your words:</b> ${draft.dropped.map(d => esc(d.text)).join("; ")}</div>` : ""}
+      ${taken.length ? `<div class="takeback"><b>You took these back, so they're left out:</b> ${taken.map(d => esc(d.text)).join("; ")}</div>` : ""}
+      ${lost.length ? `<div class="dropped"><b>Left out, couldn't trace to your words:</b> ${lost.map(d => esc(d.text)).join("; ")}</div>` : ""}
     </div>
     <div class="row"><button class="btn" id="save" ${draft.items.length ? "" : "disabled"}>Save ${draft.items.length} item${draft.items.length === 1 ? "" : "s"}</button><button class="btn ghost" id="discard">Discard</button></div>`;
   box.querySelectorAll("[data-f]").forEach(el => el.onchange = el.oninput = () => {
@@ -339,9 +377,9 @@ async function save() {
   const top = projects.sort((a, b) => projects.filter(x => x === b).length - projects.filter(x => x === a).length)[0] || "";
   try {
     await api("/api/save", {method: "POST", body: JSON.stringify({text: sourceText, summary: draft.summary, project: top,
-      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who}) => ({kind, text, quote, due, date_words, project, repo, number, who}))})});
+      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who, urgent, unsure}) => ({kind, text, quote, due, date_words, project, repo, number, who, urgent: urgent || "", unsure: unsure || ""}))})});
     const n = draft.items.length;
-    draft = null; $("#say").value = ""; $("#count").textContent = "Saved.";
+    draft = null; $("#say").value = ""; lastLen = 0; burst = false; $("#count").textContent = "Saved.";
     renderReview(); await load(); toast(n + " item" + (n === 1 ? "" : "s") + " saved");
     tab("today");
   } catch (e) { $("#save").disabled = false; toast(e.message); }
@@ -355,7 +393,7 @@ function taskRow(it) {
   const [cls, label] = it.due ? whenLabel(it.due) : ["later", ""];
   return `<div class="task ${it.status === "done" ? "done" : ""}">
     <input type="checkbox" data-done="${it.id}" ${it.status === "done" ? "checked" : ""} aria-label="mark done">
-    <div class="t">${esc(it.text)}<div class="sub"><span class="chip k-${it.kind}">${KINDS[it.kind]}</span> ${esc(it.project || "")} · <span class="src">${src(it)}</span>${it.quote ? ` · “${esc(it.quote)}”` : ""}</div></div>
+    <div class="t">${it.urgent ? `<span class="chip urgent">urgent</span> ` : ""}${esc(it.text)}${it.unsure ? ` <span class="chip unsure">unsure</span>` : ""}<div class="sub"><span class="chip k-${it.kind}">${KINDS[it.kind]}</span> ${esc(it.project || "")} · <span class="src">${src(it)}</span>${it.quote ? ` · “${esc(it.quote)}”` : ""}</div></div>
     ${label ? `<div class="when ${cls}">${label}</div>` : ""}</div>
     ${it.kind === "followup" && it.status === "open" ? `<div class="row"><button class="linkbtn" data-draft="${it.id}">Draft follow-up</button></div><div id="d-${it.id}"></div>` : ""}`;
 }

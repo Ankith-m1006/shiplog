@@ -22,6 +22,7 @@ import dates
 import drafts
 import extract as ex
 import github
+import speech
 from store import Workspaces
 
 STATIC = pathlib.Path(__file__).resolve().parent / "static"
@@ -59,6 +60,8 @@ class SaveItem(BaseModel):
     repo: str | None = None
     number: int | None = None
     who: str = ""
+    urgent: str = Field(default="", max_length=40)
+    unsure: str = Field(default="", max_length=40)
 
 
 class SaveBody(BaseModel):
@@ -159,6 +162,10 @@ def save(body: SaveBody, request: Request):
                     "due": valid_day(it.due), "project": it.project if it.project in projects else entry["project"],
                     "who": it.who, "status": "done" if it.kind == "done" else "open",
                     "entry": entry["id"], "source": "said", "created": entry["at"]}
+            for mark in ("urgent", "unsure"):  # kept only when the speaker really said those words
+                said = getattr(it, mark).strip()
+                if said and speech.has(body.text, said):
+                    item[mark] = said
             if it.repo and re.fullmatch(r"[\w.-]+/[\w.-]+", it.repo):
                 item["repo"] = it.repo
                 if it.number:

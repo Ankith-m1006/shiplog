@@ -4,3 +4,5 @@ __pycache__/
 .env
 data/workspaces/
 .owner-key
+.github-oauth
+docs/*.mp4

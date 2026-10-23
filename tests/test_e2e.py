@@ -102,3 +102,44 @@ def test_capture_review_save_then_today_and_log(page):
     entries.first.locator("summary").click()
     assert UPDATE in entries.first.locator("blockquote").inner_text()
     assert "Pushed the review fixes" not in entries.first.locator(".chips").inner_text()
+
+
+SPOKEN = ("Fixing the login bug is urgent. The DEV post is due Tuesday, no wait, Wednesday. "
+          "Email Marco, actually scratch that. I think the results come out Monday.")
+SPOKEN_READ = {
+    "summary": "Login bug urgent; DEV post Wednesday.",
+    "items": [
+        {"kind": "task", "text": "Fix the login bug", "quote": "Fixing the login bug is urgent", "due": None,
+         "date_words": "", "project": "", "who": "", "flags": [], "urgent": "urgent"},
+        {"kind": "deadline", "text": "DEV post", "quote": "The DEV post is due Tuesday, no wait, Wednesday",
+         "due": "2026-10-28", "date_words": "Wednesday", "project": "", "who": "", "flags": [],
+         "corrected": {"from": "Tuesday", "to": "Wednesday"}},
+        {"kind": "deadline", "text": "Results out", "quote": "I think the results come out Monday", "due": "2026-10-26",
+         "date_words": "Monday", "project": "", "who": "", "flags": [], "unsure": "i think"},
+    ],
+    "dropped": [{"text": "Email Marco", "why": "you took it back", "taken_back": True}],
+    "speech": {"words": 25, "talk_s": 10, "type_s": 38},
+}
+
+
+def test_flow_burst_is_read_without_a_tap_and_speech_marks_survive_saving(page):
+    page.unroute("**/api/read")
+    page.route("**/api/read", lambda route: route.fulfill(json=SPOKEN_READ))
+    page.fill("#say", SPOKEN)  # arrives in one go, like Flow; nobody clicks Read
+    review = page.locator("#review")
+    review.get_by_text("Here's what I understood").wait_for(timeout=6000)
+    text = review.inner_text()
+    assert "you corrected “Tuesday” to “Wednesday”" in text
+    assert "urgent: “urgent”" in text and "still unsure?" in text
+    assert "You took these back" in text and "Email Marco" in text
+    assert "25 words: about 10 s to say, 38 s to type." in text
+    page.click("#save")
+    page.locator("section#today.on").wait_for()
+    today = page.locator("section#today").inner_text()
+    assert "urgent" in today and "unsure" in today
+
+
+def test_typing_key_by_key_waits_for_the_button(page):
+    page.locator("#say").press_sequentially("Fix the build today.", delay=20)
+    page.wait_for_timeout(2500)
+    assert "Here's what I understood" not in page.locator("#review").inner_text()
