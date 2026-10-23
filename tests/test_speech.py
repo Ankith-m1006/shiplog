@@ -87,3 +87,29 @@ def test_speaking_vs_typing_time_is_reported():
 def test_a_take_back_inside_the_quote_counts_but_dont_forget_does_not():
     assert speech.retracted("Email Marco, actually scratch that, he replied.", "Email Marco, actually scratch that")
     assert not speech.retracted("Don't forget that the demo is Friday.", "Don't forget that the demo is Friday")
+
+
+LOG = [{"id": "a1", "kind": "deadline", "text": "Submit Amazon on Devpost", "due": "2026-10-23", "status": "open"},
+       {"id": "b2", "kind": "deadline", "text": "DEV week 3 post", "due": "2026-10-26", "status": "open"},
+       {"id": "c3", "kind": "rule", "text": "Don't ping flcarre", "status": "open"}]
+
+
+def changes(text, proposed):
+    return ex.check_changes({"changes": proposed}, text, LOG, TODAY)
+
+
+def test_spoken_changes_to_the_log_are_kept_when_the_words_say_them():
+    text = "The Amazon one is done. Push the DEV post to Tuesday. Drop the flcarre rule."
+    out = changes(text, [{"id": "a1", "action": "done", "quote": "The Amazon one is done"},
+                         {"id": "b2", "action": "move", "quote": "Push the DEV post to Tuesday", "date_words": "Tuesday"},
+                         {"id": "c3", "action": "drop", "quote": "Drop the flcarre rule"}])
+    assert [(c["id"], c["action"]) for c in out] == [("a1", "done"), ("b2", "move"), ("c3", "drop")]
+    assert out[1]["due"] == "2026-10-27" and out[1]["was_due"] == "2026-10-26"
+
+
+def test_changes_the_words_dont_support_are_refused():
+    text = "Talked to the Amazon team. Moved house."
+    assert changes(text, [{"id": "a1", "action": "done", "quote": "Talked to the Amazon team"},  # no done-word
+                          {"id": "b2", "action": "move", "quote": "Moved house", "date_words": ""},  # no date
+                          {"id": "zz", "action": "drop", "quote": "Moved house"},  # no such item
+                          {"id": "c3", "action": "drop", "quote": "Drop the flcarre rule"}]) == []  # not said

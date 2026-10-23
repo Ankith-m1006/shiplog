@@ -63,6 +63,6 @@ def test_connected_repos_are_known_when_reading_an_update(client, monkeypatch):
     client.post("/api/reset?empty=true", headers=H)
     client.get(f"/auth/github/callback?code=abc&state={start(client)}")
     seen = {}
-    monkeypatch.setattr(server.ex, "extract", lambda text, projects, repos: seen.setdefault("repos", repos) and {"summary": "", "items": [], "dropped": []})
+    monkeypatch.setattr(server.ex, "extract", lambda text, projects, repos, log=(): seen.setdefault("repos", repos) and {"summary": "", "items": [], "dropped": []})
     client.post("/api/read", headers=H, json={"text": "Pushed the fix on PR 12 in shiplog."})
     assert "octo/shiplog" in seen["repos"]

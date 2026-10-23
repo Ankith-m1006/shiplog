@@ -72,6 +72,15 @@ textarea#say:focus,textarea#askq:focus{outline:none;border-color:var(--focus);bo
 .chip.fix{color:var(--accent);border-color:var(--accent)}
 .chip.unsure{color:var(--due);border-color:var(--due)}
 .chip.urgent{color:var(--late);border-color:var(--late);font-weight:600}
+.change{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line-soft, var(--line))}
+.change:last-child{border-bottom:0}
+.sub-h{font-size:13px;font-weight:600;margin:14px 0 2px;color:var(--muted)}
+.change .what{font-size:14px}
+.change .what b{font-weight:600}
+.chip.a-done{color:var(--ship);border-color:var(--ship)}
+.chip.a-move{color:var(--due);border-color:var(--due)}
+.chip.a-drop{color:var(--late);border-color:var(--late)}
+.chip.a-reopen{color:var(--accent);border-color:var(--accent)}
 .takeback{font-size:12px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:8px 12px;margin:0 0 12px}
 .capbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .auto{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
@@ -306,6 +315,9 @@ $("#read").onclick = async () => {
   clearTimeout(autoTimer); burst = false;
   const text = $("#say").value.trim();
   if (draft && text === sourceText) return;  // already read; nothing new was said
+  if (/\?\s*$/.test(text) && text.split(/\s+/).length <= 25) {  // a question, not an update: answer it from the log
+    $("#askq").value = text; $("#say").value = ""; lastLen = 0; tab("ask"); $("#askBtn").click(); return;
+  }
   $("#readErr").hidden = true;
   if (!text) { $("#say").focus(); return; }
   $("#read").disabled = true; $("#read").textContent = "Reading…";
@@ -317,6 +329,12 @@ $("#read").onclick = async () => {
   finally { $("#read").disabled = false; $("#read").textContent = "Read it"; }
 };
 
+function saveLabel() {
+  const n = draft.items.length, c = (draft.changes || []).length, parts = [];
+  if (n) parts.push(n + " item" + (n === 1 ? "" : "s"));
+  if (c) parts.push(c + " change" + (c === 1 ? "" : "s"));
+  return "Save " + (parts.join(" and ") || "");
+}
 function dur(s) { return s < 60 ? s + " s" : Math.floor(s / 60) + " min" + (s % 60 >= 30 ? " 30 s" : ""); }
 function speakChips(it) {
   const c = [];
@@ -349,22 +367,33 @@ function renderReview() {
     </div>`).join("");
   const taken = draft.dropped.filter(d => d.taken_back), lost = draft.dropped.filter(d => !d.taken_back);
   const sp = draft.speech;
+  const ACT = {done: "mark done", move: "move", drop: "remove", reopen: "reopen"};
+  const changes = (draft.changes || []).map((c, i) => `
+    <div class="change">
+      <span class="chip a-${c.action}">${ACT[c.action]}</span>
+      <div class="what"><b>${esc(c.item)}</b>${c.action === "move" ? ` · ${c.was_due ? esc(fmtDay(c.was_due)) + " → " : ""}${esc(fmtDay(c.due))}` : ""}
+        <div class="quote">you said: “${esc(c.quote)}”</div></div>
+      <button class="x" data-undo="${i}" aria-label="don't change">×</button>
+    </div>`).join("");
+  const total = draft.items.length + (draft.changes || []).length;
   box.innerHTML = `
     <h2>Here's what I understood <small>edit anything, then save</small></h2>
     ${sp && sp.words ? `<div class="saytime">${sp.words} words: about ${dur(sp.talk_s)} to say, ${dur(sp.type_s)} to type.</div>` : ""}
     <div class="card">
       <textarea class="summary" id="sum" rows="2" aria-label="summary">${esc(draft.summary)}</textarea>
-      ${items || '<div class="empty">Nothing to save from that update.</div>'}
+      ${items || (changes ? "" : '<div class="empty">Nothing to save from that update.</div>')}
+      ${changes ? `<h3 class="sub-h">Changes to your log</h3>${changes}` : ""}
       ${taken.length ? `<div class="takeback"><b>You took these back, so they're left out:</b> ${taken.map(d => esc(d.text)).join("; ")}</div>` : ""}
       ${lost.length ? `<div class="dropped"><b>Left out, couldn't trace to your words:</b> ${lost.map(d => esc(d.text)).join("; ")}</div>` : ""}
     </div>
-    <div class="row"><button class="btn" id="save" ${draft.items.length ? "" : "disabled"}>Save ${draft.items.length} item${draft.items.length === 1 ? "" : "s"}</button><button class="btn ghost" id="discard">Discard</button></div>`;
+    <div class="row"><button class="btn" id="save" ${total ? "" : "disabled"}>${saveLabel()}</button><button class="btn ghost" id="discard">Discard</button></div>`;
   box.querySelectorAll("[data-f]").forEach(el => el.onchange = el.oninput = () => {
     const it = draft.items[el.closest(".item").dataset.i];
     it[el.dataset.f] = el.value || (el.dataset.f === "due" ? null : "");
     if (el.dataset.f === "kind") renderReview();
   });
   $("#sum").oninput = e => draft.summary = e.target.value;
+  box.querySelectorAll("[data-undo]").forEach(b => b.onclick = () => { draft.changes.splice(+b.dataset.undo, 1); renderReview(); });
   box.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { draft.items.splice(+b.dataset.del, 1); renderReview(); });
   $("#discard").onclick = () => { draft = null; renderReview(); };
   $("#save").onclick = save;
@@ -377,10 +406,11 @@ async function save() {
   const top = projects.sort((a, b) => projects.filter(x => x === b).length - projects.filter(x => x === a).length)[0] || "";
   try {
     await api("/api/save", {method: "POST", body: JSON.stringify({text: sourceText, summary: draft.summary, project: top,
-      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who, urgent, unsure}) => ({kind, text, quote, due, date_words, project, repo, number, who, urgent: urgent || "", unsure: unsure || ""}))})});
-    const n = draft.items.length;
+      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who, urgent, unsure}) => ({kind, text, quote, due, date_words, project, repo, number, who, urgent: urgent || "", unsure: unsure || ""})),
+      changes: (draft.changes || []).map(({id, action, quote, due}) => ({id, action, quote, due: due || null}))})});
+    const n = draft.items.length, label = saveLabel().replace("Save ", "");
     draft = null; $("#say").value = ""; lastLen = 0; burst = false; $("#count").textContent = "Saved.";
-    renderReview(); await load(); toast(n + " item" + (n === 1 ? "" : "s") + " saved");
+    renderReview(); await load(); toast(label + " saved");
     tab("today");
   } catch (e) { $("#save").disabled = false; toast(e.message); }
 }
