@@ -544,14 +544,14 @@ $("#q").oninput = renderLog; $("#proj").onchange = renderLog;
 async function loadFlow() {
   const f = await api("/api/flow");
   const saved = Math.max(0, f.type_min - f.talk_min);
-  $("#flowStats").innerHTML = `<div class="stat"><b>${f.words.toLocaleString("en-IN")}</b><span>words said</span></div><div class="stat"><b>${f.updates}</b><span>updates</span></div><div class="stat soon"><b>${saved >= 60 ? (saved / 60).toFixed(1) + " h" : Math.round(saved) + " min"}</b><span>saved vs typing</span></div>`;
+  $("#flowStats").innerHTML = `<div class="stat"><b>${f.words.toLocaleString("en-IN")}</b><span>words said</span></div><div class="stat"><b>${f.updates}</b><span>updates</span></div><div class="stat soon"><b>${saved >= 60 ? (saved / 60).toFixed(1) + " h" : saved >= 1 ? Math.round(saved) + " min" : Math.round(saved * 60) + " s"}</b><span>saved vs typing</span></div>`;
   $("#misheard").innerHTML = f.misheard.length
     ? `<div class="card">${f.misheard.map(m => `<div class="heardrow"><span class="said">${esc(m.said)}</span>→<b>${esc(m.meant)}</b><span class="hint">${m.times} time${m.times === 1 ? "" : "s"}</span></div>`).join("")}</div>`
     : `<div class="empty">Nothing misheard yet. When Flow spells one of your names differently, it shows up here.</div>`;
   const mine = new Set(f.my_words.map(w => w.toLowerCase()));
   $("#dict").innerHTML = f.dictionary.length
     ? `<div class="wordlist">${f.dictionary.map(w => `<span class="chip">${esc(w)}${mine.has(w.toLowerCase()) ? `<button data-rm="${esc(w)}" aria-label="remove">×</button>` : ""}</span>`).join("")}</div><div class="copyrow"><button class="btn ghost" id="copyDict">Copy all ${f.dictionary.length}</button></div>`
-    : `<div class="empty">Your project names, repositories and people appear here as you talk.</div>`;
+    : `<div class="empty">No names yet. Connect GitHub or add your words below: then ShipLog catches it when Flow mishears them, and lists them for Flow's Dictionary.</div>`;
   $("#snips").innerHTML = f.snippets.map((s, i) => `<div class="snip"><b>“${esc(s.say)}”</b><code>${esc(s.text)}</code><button class="linkbtn" data-snip="${i}">Copy</button></div>`).join("");
   const copy = (t, msg) => navigator.clipboard.writeText(t).then(() => toast(msg), () => toast("Couldn't copy here; select the text instead."));
   if ($("#copyDict")) $("#copyDict").onclick = () => copy(f.dictionary.join("\n"), "Copied. Paste them into Wispr Flow → Dictionary.");
