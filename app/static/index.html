@@ -385,7 +385,7 @@ function renderReview() {
       <div class="meta">
         ${["deadline", "task", "followup"].includes(it.kind) || it.due ? `<input type="date" data-f="due" value="${it.due || ""}" aria-label="due date">` : ""}
         ${it.date_words ? `<span>from “${esc(it.date_words)}”</span>` : ""}
-        ${it.repo ? `<span class="chip k-pr">${esc(it.repo.split("/")[1])}${it.number ? " #" + it.number : ""}</span>` : ""}
+        ${it.repo ? `<span class="chip k-pr">${esc(it.repo.split("/").pop())}${it.number ? (it.host === "gitlab" ? " !" : " #") + it.number : ""}</span>` : ""}
         <select data-f="project" aria-label="project"><option value="">no project</option>${projects.map(p => `<option ${p === it.project ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>
       </div>
       <div style="grid-column:2/4">
@@ -442,7 +442,7 @@ async function save() {
   const top = projects.sort((a, b) => projects.filter(x => x === b).length - projects.filter(x => x === a).length)[0] || "";
   try {
     await api("/api/save", {method: "POST", body: JSON.stringify({text: sourceText, summary: draft.summary, project: top,
-      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who, urgent, unsure}) => ({kind, text, quote, due, date_words, project, repo, number, who, urgent: urgent || "", unsure: unsure || ""})),
+      items: draft.items.map(({kind, text, quote, due, date_words, project, repo, number, who, urgent, unsure, host}) => ({kind, text, quote, due, date_words, project, repo, number, who, host: host || "", urgent: urgent || "", unsure: unsure || ""})),
       changes: (draft.changes || []).map(({id, action, quote, due}) => ({id, action, quote, due: due || null}))})});
     const n = draft.items.length, label = saveLabel().replace("Save ", "");
     draft = null; $("#say").value = ""; lastLen = 0; burst = false; $("#count").textContent = "Saved.";
@@ -501,7 +501,7 @@ async function loadGithub() {
       const [repo, number] = b.dataset.seen.split("|");
       await api("/api/github/seen", {method: "POST", body: JSON.stringify({repo, number: +number})}); loadGithub();
     });
-    if (closed && closed.length) { toast("Merged, so marked done: " + closed.join("; ")); await load(); }
+    if (closed && closed.length) { toast("Merged, so marked done: " + closed.join("; ")); await load(); render(); }
   } catch (e) { toast(e.message); }
 }
 
