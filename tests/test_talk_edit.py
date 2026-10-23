@@ -54,3 +54,21 @@ def test_a_change_whose_words_were_not_said_is_ignored(client):
     client.post("/api/save", headers=H, json={"text": "Lunch was good.", "summary": "s", "items": [], "changes": [
         {"id": ids["Amazon"], "action": "drop", "quote": "Drop Amazon"}]})
     assert items(client)["Amazon"]["status"] == "open"
+
+
+def test_flow_tab_reports_misheard_names_and_lets_you_add_words(client, monkeypatch):
+    client.post("/api/save", headers=H, json={"text": "Pushed Shiplock day four.", "summary": "s", "items": [
+        {"kind": "done", "text": "Pushed day four", "quote": "Pushed Shiplock day four"}]})
+    client.post("/api/flow/words", headers=H, json={"word": "ShipLog"})
+    f = client.get("/api/flow", headers=H).json()
+    assert {"said": "Shiplock", "meant": "ShipLog", "times": 1} in f["misheard"]
+    assert "ShipLog" in f["dictionary"] and f["my_words"] == ["ShipLog"]
+    client.post("/api/flow/words", headers=H, json={"word": "shiplog", "remove": True})
+    assert client.get("/api/flow", headers=H).json()["my_words"] == []
+
+
+def test_reading_an_update_points_out_misheard_names(client, monkeypatch):
+    client.post("/api/flow/words", headers=H, json={"word": "GitLab"})
+    monkeypatch.setattr(server.ex, "extract", lambda text, projects, repos, log=(): {"summary": "", "items": [], "changes": [], "dropped": []})
+    r = client.post("/api/read", headers=H, json={"text": "Recorded the get lab demo."}).json()
+    assert r["heard"] == [{"said": "get lab", "meant": "GitLab"}]
