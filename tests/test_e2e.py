@@ -143,3 +143,37 @@ def test_typing_key_by_key_waits_for_the_button(page):
     page.locator("#say").press_sequentially("Fix the build today.", delay=20)
     page.wait_for_timeout(2500)
     assert "Here's what I understood" not in page.locator("#review").inner_text()
+
+
+def test_a_spoken_change_to_the_log_is_shown_and_applied(page):
+    page.fill("#say", UPDATE)
+    page.click("#read")
+    page.locator("#review .item").first.wait_for()
+    page.click("#save")
+    page.locator("section#today.on").wait_for()
+    state = page.evaluate("fetch('/api/state', {headers: {'X-Workspace': localStorage.getItem('shiplog.ws')}}).then(r => r.json())")
+    gitlab = next(i for i in state["items"] if i["text"] == "GitLab submission")
+    said = "The GitLab one is submitted."
+    page.unroute("**/api/read")
+    page.route("**/api/read", lambda route: route.fulfill(json={
+        "summary": "GitLab submitted.", "items": [], "dropped": [],
+        "changes": [{"id": gitlab["id"], "action": "done", "quote": said, "item": "GitLab submission",
+                     "kind": "deadline", "was_due": "2026-10-27"}]}))
+    page.click("nav button[data-tab=capture]")
+    page.fill("#say", said)
+    page.click("#read")
+    review = page.locator("#review")
+    review.get_by_text("Changes to your log").wait_for()
+    assert "mark done" in review.inner_text() and "Save 1 change" in review.inner_text()
+    page.click("#save")
+    page.locator("section#today.on").wait_for()
+    state = page.evaluate("fetch('/api/state', {headers: {'X-Workspace': localStorage.getItem('shiplog.ws')}}).then(r => r.json())")
+    assert next(i for i in state["items"] if i["id"] == gitlab["id"])["status"] == "done"
+
+
+def test_a_spoken_question_in_capture_is_answered_by_ask(page):
+    page.route("**/api/ask", lambda route: route.fulfill(json={"found": False, "answer": "That isn't in your log yet.", "cites": []}))
+    page.fill("#say", "What is due this week?")
+    page.click("#read")
+    page.locator("section#ask.on").wait_for()
+    assert page.locator("#askq").input_value() == "What is due this week?"

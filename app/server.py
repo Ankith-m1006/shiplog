@@ -64,11 +64,19 @@ class SaveItem(BaseModel):
     unsure: str = Field(default="", max_length=40)
 
 
+class SaveChange(BaseModel):
+    id: str = Field(max_length=20)
+    action: str
+    quote: str = Field(max_length=600)
+    due: str | None = None
+
+
 class SaveBody(BaseModel):
     text: str = Field(max_length=ex.MAX_CHARS)
     summary: str = Field(max_length=300)
     project: str = ""
     items: list[SaveItem] = Field(max_length=40)
+    changes: list[SaveChange] = Field(default=[], max_length=40)
 
 
 class ReadBody(BaseModel):
@@ -117,7 +125,8 @@ def read(body: ReadBody, request: Request):
     doc = spaces.load(key, seed)
     repos = known_repos(doc)
     try:
-        return ex.extract(body.text, [p["name"] for p in doc["projects"]], repos)
+        log = [i for i in reversed(doc["items"]) if i.get("status") == "open"]
+        return ex.extract(body.text, [p["name"] for p in doc["projects"]], repos, log=log)
     except ex.InputError as e:
         raise HTTPException(422, str(e))
     except ex.ExtractError as e:
@@ -174,6 +183,22 @@ def save(body: SaveBody, request: Request):
                         doc["watch"].append({"repo": it.repo, "number": it.number, "source": "said"})
             doc["items"].append(item)
             entry["items"].append(item["id"])
+        entry["changes"] = []
+        by_id = {i["id"]: i for i in doc["items"]}
+        for c in body.changes:  # applied only when the change's words are really in this update
+            target = by_id.get(c.id)
+            if not target or c.action not in ex.ACTIONS or ex.norm(c.quote) not in plain:
+                continue
+            if c.action == "move":
+                if not valid_day(c.due):
+                    continue
+                target["due"] = valid_day(c.due)
+            else:
+                target["status"] = {"done": "done", "drop": "dropped", "reopen": "open"}[c.action]
+            target["updated"] = entry["at"]
+            target.setdefault("history", []).append({"at": entry["at"], "action": c.action, "said": c.quote,
+                                                     "entry": entry["id"]})
+            entry["changes"].append({"id": c.id, "action": c.action, "quote": c.quote})
         doc["entries"].insert(0, entry)
         return entry
 
