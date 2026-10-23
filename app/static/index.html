@@ -95,6 +95,11 @@ textarea#say:focus,textarea#askq:focus{outline:none;border-color:var(--focus);bo
 .addword input{flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--bg);color:var(--ink);font-size:14px}
 .heard{margin:0 0 12px;font-size:13px;border:1px solid var(--accent);border-radius:6px;padding:8px 12px}
 .heard button{margin-left:6px}
+.writebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 12px;font-size:13px;color:var(--muted)}
+.writebar .btn{padding:3px 12px;font-size:13px}
+.report{white-space:pre-wrap;font-size:14px;line-height:1.55;padding:14px 16px}
+.report-head{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line-soft);font-size:13px;color:var(--muted)}
+.report-head b{color:var(--ink)}
 .takeback{font-size:12px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:8px 12px;margin:0 0 12px}
 .capbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .auto{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
@@ -208,6 +213,8 @@ header .right{display:flex;align-items:center;gap:12px}
 
   <section id="today">
     <div class="stats" id="stats"></div>
+    <div class="writebar"><span>Write from my log:</span><button class="btn ghost" data-report="standup">Stand-up</button><button class="btn ghost" data-report="weekly">Weekly report</button><button class="btn ghost" data-report="post">Post</button></div>
+    <div id="reportOut"></div>
     <div id="needsBox" hidden><h2>Needs you <small>from GitHub and GitLab, checked live</small></h2><div class="card" id="needs"></div></div>
     <h2>Due this week <small id="weekRange"></small></h2>
     <div id="week"></div>
@@ -344,6 +351,8 @@ $("#read").onclick = async () => {
   clearTimeout(autoTimer); burst = false;
   const text = $("#say").value.trim();
   if (draft && text === sourceText) return;  // already read; nothing new was said
+  const asked = spokenReport(text);
+  if (asked) { $("#say").value = ""; lastLen = 0; tab("today"); writeReport(asked); return; }
   if (/\?\s*$/.test(text) && text.split(/\s+/).length <= 25) {  // a question, not an update: answer it from the log
     $("#askq").value = text; $("#say").value = ""; lastLen = 0; tab("ask"); $("#askBtn").click(); return;
   }
@@ -582,6 +591,25 @@ document.addEventListener("click", async e => {
   window.open("https://calendar.google.com/calendar/render?cid=" + encodeURIComponent("webcal://" + feed), "_blank", "noopener");
   toast("Opening Google Calendar. Deadlines you say will appear there and stay updated.");
 });
+function spokenReport(t) {
+  const m = /^\s*(?:please\s+)?(?:write|make|give|draft|do)\s+(?:me\s+)?(?:my\s+|a\s+|the\s+)?(stand-?\s?up|weekly(?:\s+report)?|week(?:ly)?\s+summary|post|tweet)\b/i.exec(t);
+  if (!m) return null;
+  const w = m[1].toLowerCase();
+  return w.startsWith("stand") ? "standup" : (w === "post" || w === "tweet") ? "post" : "weekly";
+}
+async function writeReport(kind) {
+  const out = $("#reportOut");
+  out.innerHTML = `<div class="card"><div class="report">Writing from your log…</div></div>`;
+  try {
+    const r = await api("/api/report", {method: "POST", body: JSON.stringify({kind})});
+    out.innerHTML = `<div class="card"><div class="report-head"><b>${esc(r.title)}</b><span>${r.chars ? r.chars + "/280 · " : ""}${r.empty ? "" : `<button class="linkbtn" id="copyReport">Copy</button> · `}<button class="linkbtn" id="closeReport">Close</button></span></div>
+      <div class="report">${esc(r.text)}</div>
+      ${r.cites.length ? `<div class="answer" style="border:0;border-top:1px solid var(--line-soft);border-radius:0">${r.cites.map(c => `<div class="cite"><span class="chip k-${esc(c.type === "entry" ? "task" : c.type)}">${esc(c.type === "entry" ? "update" : KINDS[c.type] || c.type)}</span><span class="q">${esc(c.quote)}</span><span class="w">${esc(c.project || "")}</span></div>`).join("")}</div>` : ""}</div>`;
+    $("#closeReport").onclick = () => out.innerHTML = "";
+    if ($("#copyReport")) $("#copyReport").onclick = () => navigator.clipboard.writeText(r.text).then(() => toast("Copied. ShipLog never sends anything itself."), () => toast("Couldn't copy here; select the text instead."));
+  } catch (e) { out.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+document.querySelectorAll("[data-report]").forEach(b => b.onclick = () => writeReport(b.dataset.report));
 function render() {
   if (!S) return;
   renderToday(); renderLog();

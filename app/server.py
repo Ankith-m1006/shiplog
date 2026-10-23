@@ -23,6 +23,7 @@ import drafts
 import extract as ex
 import flowwords
 import github
+import reports
 import gitlab
 import speech
 from store import Workspaces
@@ -90,6 +91,10 @@ class AskBody(BaseModel):
     question: str = Field(max_length=asker.MAX_QUESTION)
 
 
+class ReportBody(BaseModel):
+    kind: str
+
+
 class FlowWord(BaseModel):
     word: str = Field(min_length=2, max_length=60)
     remove: bool = False
@@ -140,6 +145,18 @@ def read(body: ReadBody, request: Request):
     except ex.InputError as e:
         raise HTTPException(422, str(e))
     except ex.ExtractError as e:
+        raise HTTPException(503, str(e))
+
+
+@app.post("/api/report")
+def write_report(body: ReportBody, request: Request):
+    key, seed, _ = workspace(request)
+    rate_limit(key)
+    try:
+        return reports.report(body.kind, spaces.load(key, seed))
+    except reports.InputError as e:
+        raise HTTPException(422, str(e))
+    except reports.ExtractError as e:
         raise HTTPException(503, str(e))
 
 
