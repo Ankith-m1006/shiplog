@@ -23,6 +23,7 @@ import drafts
 import extract as ex
 import flowwords
 import github
+import gitlab
 import speech
 from store import Workspaces
 
@@ -61,6 +62,7 @@ class SaveItem(BaseModel):
     repo: str | None = None
     number: int | None = None
     who: str = ""
+    host: str = ""
     urgent: str = Field(default="", max_length=40)
     unsure: str = Field(default="", max_length=40)
 
@@ -204,12 +206,15 @@ def save(body: SaveBody, request: Request):
                 said = getattr(it, mark).strip()
                 if said and speech.has(body.text, said):
                     item[mark] = said
-            if it.repo and re.fullmatch(r"[\w.-]+/[\w.-]+", it.repo):
+            if it.repo and re.fullmatch(r"[\w.-]+(/[\w.-]+)+", it.repo):
                 item["repo"] = it.repo
+                if it.host == "gitlab":
+                    item["host"] = "gitlab"
                 if it.number:
                     item["number"] = it.number
                     if not any(w["repo"] == it.repo and w["number"] == it.number for w in doc["watch"]):
-                        doc["watch"].append({"repo": it.repo, "number": it.number, "source": "said"})
+                        doc["watch"].append({"repo": it.repo, "number": it.number, "source": "said",
+                                             **({"host": "gitlab"} if it.host == "gitlab" else {})})
             doc["items"].append(item)
             entry["items"].append(item["id"])
         entry["changes"] = []
@@ -269,11 +274,69 @@ def delete_entry(entry_id: str, request: Request):
     return spaces.edit(key, apply, seed)
 
 
+def live(w):
+    return (gitlab if w.get("host") == "gitlab" else github).status(w["repo"], w["number"])
+
+
 @app.get("/api/github")
 def github_status(request: Request):
+    """Live state of every watched PR/MR. A merge closes the items about it (with a history line);
+    failing checks, requested changes or new comments since you last looked mark it 'needs you'."""
     key, seed, _ = workspace(request)
     doc = spaces.load(key, seed)
-    return {"prs": [{**github.status(w["repo"], w["number"]), "source": w.get("source", "said")} for w in doc["watch"][:20]]}
+    watched = doc["watch"][:20]
+    lives = {(w["repo"], w["number"]): live(w) for w in watched}
+
+    def apply(doc):
+        closed = []
+        for w in doc["watch"][:20]:
+            s = lives.get((w["repo"], w["number"]))
+            if not s or s["state"] == "unknown":
+                continue
+            if "notes" in s and "seen_notes" not in w:
+                w["seen_notes"] = s["notes"]
+            if s["state"] == "merged" and w.get("state") != "merged":
+                where = "GitLab" if w.get("host") == "gitlab" else "GitHub"
+                for it in doc["items"]:
+                    if it.get("repo") == w["repo"] and it.get("number") == w["number"] and it["status"] == "open" \
+                            and it["kind"] in ("pr", "task", "followup"):
+                        it["status"], it["updated"] = "done", stamp()
+                        it.setdefault("history", []).append({"at": it["updated"], "action": "done",
+                                                             "said": f"merged on {where}", "source": "github"})
+                        closed.append(it["text"])
+            w["state"] = s["state"]
+        return {"closed": closed, "seen": {(w["repo"], w["number"]): w.get("seen_notes", 0) for w in doc["watch"]}}
+
+    changed = any(s["state"] != "unknown" and (w.get("state") != s["state"] or ("notes" in s and "seen_notes" not in w))
+                  for w in watched for s in [lives[(w["repo"], w["number"])]])
+    out = spaces.edit(key, apply, seed) if changed else {"closed": [], "seen": {(w["repo"], w["number"]): w.get("seen_notes", 0) for w in watched}}
+    prs = []
+    for w in watched:
+        s = dict(lives[(w["repo"], w["number"])])
+        new = s.get("notes", 0) - out["seen"].get((w["repo"], w["number"]), 0)
+        if s["state"] in ("open", "draft") and not s.get("needs") and new > 0:
+            s["needs"] = f"{new} new comment{'s' if new > 1 else ''}"
+        prs.append({**s, "source": w.get("source", "said"), "host": w.get("host", "github")})
+    return {"prs": prs, "closed": out["closed"]}
+
+
+class Seen(BaseModel):
+    repo: str = Field(max_length=200)
+    number: int
+
+
+@app.post("/api/github/seen")
+def github_seen(body: Seen, request: Request):
+    key, seed, _ = workspace(request)
+
+    def apply(doc):
+        for w in doc["watch"]:
+            if w["repo"] == body.repo and w["number"] == body.number:
+                w["seen_notes"] = live(w).get("notes", w.get("seen_notes", 0))
+                return {"ok": True}
+        raise HTTPException(404, "not watched")
+
+    return spaces.edit(key, apply, seed)
 
 
 @app.post("/api/draft/{item_id}")
@@ -359,18 +422,47 @@ def github_disconnect(request: Request):
 def ics(request: Request, w: str = ""):
     # A download link can't send headers, so the key comes as ?w=.
     key, seed, _ = workspace(request, w)
-    doc = spaces.load(key, seed)
-    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ShipLog//EN", "CALSCALE:GREGORIAN"]
+    return Response(calendar(spaces.load(key, seed)), media_type="text/calendar",
+                    headers={"Content-Disposition": 'attachment; filename="shiplog-deadlines.ics"'})
+
+
+@app.get("/api/calendar")
+def calendar_link(request: Request):
+    """A private subscribe link for Google/Apple Calendar. It carries its own random token, never
+    the workspace key, so sharing the calendar can't open the log."""
+    key, seed, _ = workspace(request)
+
+    def apply(doc):
+        if not doc.get("cal"):
+            doc["cal"] = secrets.token_urlsafe(18)
+            spaces.backend.put("cal-" + doc["cal"], {"w": key})
+        return doc["cal"]
+
+    token = spaces.load(key, seed).get("cal") or spaces.edit(key, apply, seed)
+    return {"path": f"/cal/{token}.ics"}
+
+
+@app.get("/cal/{token}.ics")
+def calendar_feed(token: str):
+    ref = spaces.backend.get("cal-" + token) if re.fullmatch(r"[\w-]{20,40}", token) else None
+    if not ref:
+        raise HTTPException(404, "no such calendar")
+    key, seed, _ = workspace(None, ref["w"])
+    return Response(calendar(spaces.load(key, seed)), media_type="text/calendar")
+
+
+def calendar(doc):
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ShipLog//EN", "CALSCALE:GREGORIAN",
+             "X-WR-CALNAME:ShipLog deadlines", "REFRESH-INTERVAL;VALUE=DURATION:PT6H"]
     for it in doc["items"]:
         if it.get("due") and it["status"] == "open" and it["kind"] in ("deadline", "task", "followup"):
             day = it["due"].replace("-", "")
             nxt = (dt.date.fromisoformat(it["due"]) + dt.timedelta(days=1)).strftime("%Y%m%d")
             title = re.sub(r"[,;\\\n]", " ", it["text"])
-            lines += ["BEGIN:VEVENT", f"UID:{it['id']}@shiplog", f"DTSTAMP:{dt.datetime.utcnow():%Y%m%dT%H%M%SZ}",
+            lines += ["BEGIN:VEVENT", f"UID:{it['id']}@shiplog", f"DTSTAMP:{dt.datetime.now(dt.timezone.utc):%Y%m%dT%H%M%SZ}",
                       f"DTSTART;VALUE=DATE:{day}", f"DTEND;VALUE=DATE:{nxt}", f"SUMMARY:{title}", "END:VEVENT"]
     lines.append("END:VCALENDAR")
-    return Response("\r\n".join(lines) + "\r\n", media_type="text/calendar",
-                    headers={"Content-Disposition": 'attachment; filename="shiplog-deadlines.ics"'})
+    return "\r\n".join(lines) + "\r\n"
 
 
 @app.get("/")

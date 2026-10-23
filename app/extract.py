@@ -34,7 +34,7 @@ Item kinds:
 - deadline: a date something is due (a submission, a hackathon close).
 - followup: someone they need to nudge or reply to.
 - rule: a "do not" or a condition they want remembered (e.g. do not ping a reviewer again, no new claims until something merges).
-- pr: a pull request or issue they mention, with its state if they say it.
+- pr: a pull request, GitLab merge request (MR) or issue they mention, with its state if they say it.
 
 Rules:
 - Use only what the update says. Never add tasks, dates, people, repositories or numbers that are not in it.
@@ -205,10 +205,13 @@ def check(raw, text, projects, repos, today):
         if repo:
             if repo.lower() in known_repos:
                 item["repo"] = known_repos[repo.lower()]
-            elif re.fullmatch(r"[\w.-]+/[\w.-]+", repo) and norm(repo) in plain:
+            elif re.fullmatch(r"[\w.-]+(/[\w.-]+)+", repo) and norm(repo) in plain:
                 item["repo"] = repo
             else:
                 item["flags"].append(f'repo "{repo}" not confirmed')
+        if re.search(r"\b(merge request|MR|gitlab)\b", quote + " " + (item.get("repo") or ""), re.I) or \
+                ("/" in (item.get("repo") or "") and item["repo"].count("/") > 1):
+            item["host"] = "gitlab"
         if isinstance(number, int) and number > 0:
             if re.search(rf"(?<!\d){number}(?!\d)", text):
                 item["number"] = number
