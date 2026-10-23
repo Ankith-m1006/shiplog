@@ -467,7 +467,7 @@ function renderToday() {
   const late = dated.filter(i => i.due < S.today), week = dated.filter(i => i.due >= S.today && i.due <= end), later = dated.filter(i => i.due > end);
   const undated = open.filter(i => !i.due && ["task", "followup"].includes(i.kind));
   const rules = open.filter(i => i.kind === "rule");
-  $("#stats").innerHTML = `<div class="stat late"><b>${late.length}</b><span>overdue</span></div><div class="stat soon"><b>${week.length}</b><span>due this week</span></div><div class="stat"><b>${S.items.filter(i => i.kind === "done").length}</b><span>shipped</span></div>`;
+  $("#stats").innerHTML = `<div class="stat late"><b>${late.length}</b><span>overdue</span></div><div class="stat soon"><b>${week.length}</b><span>due this week</span></div><div class="stat"><b>${S.items.filter(i => i.kind === "done" || (i.status === "done" && i.kind !== "rule")).length}</b><span>shipped</span></div>`;
   $("#weekRange").textContent = "to " + fmtDay(end);
   const list = (arr, empty) => arr.length ? `<div class="card">${arr.map(taskRow).join("")}</div>` : `<div class="empty">${empty}</div>`;
   $("#week").innerHTML = list([...late, ...week], "Nothing due this week.");
