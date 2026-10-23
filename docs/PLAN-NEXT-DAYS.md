@@ -32,7 +32,7 @@ Typed updates are short and tidy. Spoken updates are long, messy, self-correctin
 
 | Day | Build | Ankith |
 |---|---|---|
-| Fri 23 | 1 brain-dump parser (corrections, hedges, urgency, spoken numbers) + 2 auto-read; tests | use ShipLog for real by voice tonight; keep raw updates |
+| Fri 23 | ✅ DONE 09:28 (fae45cd, live rev 00006): 1 brain-dump parser (corrections, hedges, urgency, spoken numbers, take-backs) + 2 auto-read; 44 tests | use ShipLog for real by voice tonight; keep raw updates |
 | Sat 24 | 3 talk-to-edit commands | a 2-min end-of-day brain dump |
 | Sun 25 | 4 Flow tune-up (misheard-name check + Dictionary/Snippets list) | add the suggested words to Flow; screenshot before/after |
 | Mon 26 | 6 GitHub "needs you" + merged -> done, webcal feed, GitLab MRs | subscribe the calendar on phone |
