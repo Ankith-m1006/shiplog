@@ -81,7 +81,8 @@ def _checks(runs):
 def fetch(repo, number):
     pr = _get(f"/repos/{repo}/pulls/{number}")
     status = {"repo": repo, "number": number, "title": pr.get("title", ""), "url": pr.get("html_url"),
-              "author": (pr.get("user") or {}).get("login", ""), "updated": pr.get("updated_at")}
+              "author": (pr.get("user") or {}).get("login", ""), "updated": pr.get("updated_at"),
+              "notes": pr.get("comments", 0) + pr.get("review_comments", 0)}
     if pr.get("merged_at"):
         status.update(state="merged", detail="merged " + pr["merged_at"][:10])
         return status
@@ -90,7 +91,8 @@ def fetch(repo, number):
         return status
     review = _review(_get(f"/repos/{repo}/pulls/{number}/reviews?per_page=100"))
     checks = _checks(_get(f"/repos/{repo}/commits/{pr['head']['sha']}/check-runs?per_page=100").get("check_runs", []))
-    status.update(state="draft" if pr.get("draft") else "open", detail=f"{review} · {checks}")
+    needs = "checks failing" if checks == "checks failing" else "changes requested" if review == "changes requested" else ""
+    status.update(state="draft" if pr.get("draft") else "open", detail=f"{review} · {checks}", needs=needs)
     return status
 
 
