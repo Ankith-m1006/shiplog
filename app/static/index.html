@@ -372,7 +372,7 @@ function renderReview() {
     <div class="change">
       <span class="chip a-${c.action}">${ACT[c.action]}</span>
       <div class="what"><b>${esc(c.item)}</b>${c.action === "move" ? ` · ${c.was_due ? esc(fmtDay(c.was_due)) + " → " : ""}${esc(fmtDay(c.due))}` : ""}
-        <div class="quote">you said: “${esc(c.quote)}”</div></div>
+        <div class="quote">“${esc(c.quote)}”</div></div>
       <button class="x" data-undo="${i}" aria-label="don't change">×</button>
     </div>`).join("");
   const total = draft.items.length + (draft.changes || []).length;
