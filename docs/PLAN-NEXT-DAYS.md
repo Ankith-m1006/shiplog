@@ -36,7 +36,7 @@ Typed updates are short and tidy. Spoken updates are long, messy, self-correctin
 | Sat 24 | ✅ DONE EARLY 23 Oct 09:37 (live): 3 talk-to-edit (done/move/drop/reopen by voice, history kept) + spoken questions go to Ask; 51 tests | a 2-min end-of-day brain dump |
 | Sun 25 | ✅ DONE EARLY 23 Oct 09:51 (live): 4 Flow tab: misheard names vs known names + fix in review, Dictionary list + copy, add your words, repo Snippets, words said + time saved; 57 tests | add the suggested words to Flow; screenshot before/after |
 | Mon 26 | ✅ DONE EARLY 23 Oct 10:05 (live): 6 Needs you (failing checks, changes requested, new comments + seen), merge -> items done with history, GitLab MRs via public API, Google Calendar subscribe (private token); 62 tests | subscribe the calendar on phone |
-| Tue 27 | 5 Telegram capture bot (GitLab hackathon due 18:30, lighter day) | create the bot in @BotFather, paste token to me |
+| Tue 27 | ✅ DONE EARLY 25 Oct (rev 00017): 5 Telegram capture bot @shiplog_ankith_bot: one-time link from Today ties the chat to your log; reads like the web page, replies with items + your words, Save/Discard buttons; questions answered from the log; strangers get a demo copy; webhook secret checked; 68 tests | link the bot from Today, talk to it daily |
 | Wed 28 | ✅ DONE EARLY 23 Oct 13:25 (live): 7 stand-up / weekly / post drafts from the log, cited + number-checked, also by voice ('write my stand-up'); 68 tests | use the post draft for a real #NoHandsChallenge post |
 | Thu 29 | 8 proof page + eval (40+ real updates); bug bash on phone + desktop | record the new demo (Claude records desktop, Ankith voices) |
 | Fri 30 | Update the form: new video, About, fresh usage card, feedback | press save before 23:59 |
