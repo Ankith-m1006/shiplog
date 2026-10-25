@@ -43,9 +43,9 @@ recent_reads = {}
 
 def workspace(request: Request | None, key=None):
     key = key or (request.headers.get("X-Workspace", "") if request else "")
-    if not KEY_RE.match(key):
+    owner = bool(OWNER_KEY) and hmac.compare_digest(key, OWNER_KEY)  # checked first: the owner key need not look like a browser key
+    if not owner and not KEY_RE.match(key):
         raise HTTPException(400, "missing or malformed X-Workspace")
-    owner = bool(OWNER_KEY) and hmac.compare_digest(key, OWNER_KEY)
     return key, ("empty" if owner else "demo"), owner
 
 
