@@ -6,3 +6,4 @@ data/workspaces/
 .owner-key
 .github-oauth
 docs/*.mp4
+.telegram-token

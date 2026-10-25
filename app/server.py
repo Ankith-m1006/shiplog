@@ -4,6 +4,7 @@ Each browser keeps a random workspace key and sends it as X-Workspace; a new key
 copy of the demo data. The owner's real workspace uses the key in SHIPLOG_OWNER_KEY and starts empty.
 """
 import datetime as dt
+import hashlib
 import hmac
 import os
 import pathlib
@@ -26,6 +27,7 @@ import github
 import reports
 import gitlab
 import speech
+import telegram as tg
 from store import Workspaces
 
 STATIC = pathlib.Path(__file__).resolve().parent / "static"
@@ -204,13 +206,17 @@ def ask(body: AskBody, request: Request):
 @app.post("/api/save")
 def save(body: SaveBody, request: Request):
     key, seed, _ = workspace(request)
+    return save_into(key, seed, body)
+
+
+def save_into(key, seed, body, source="said"):
     plain = ex.norm(body.text)
 
     def apply(doc):
         projects = {p["name"] for p in doc["projects"]}
         entry = {"id": uuid.uuid4().hex[:10], "at": stamp(), "text": body.text.strip(),
                  "summary": body.summary.strip(), "project": body.project if body.project in projects else "",
-                 "source": "said", "items": []}
+                 "source": source, "items": []}
         for it in body.items:
             if it.kind not in ex.KINDS or not it.text.strip():
                 continue
@@ -218,7 +224,7 @@ def save(body: SaveBody, request: Request):
                     "quote": it.quote if ex.norm(it.quote) in plain else "",
                     "due": valid_day(it.due), "project": it.project if it.project in projects else entry["project"],
                     "who": it.who, "status": "done" if it.kind == "done" else "open",
-                    "entry": entry["id"], "source": "said", "created": entry["at"]}
+                    "entry": entry["id"], "source": source, "created": entry["at"]}
             for mark in ("urgent", "unsure"):  # kept only when the speaker really said those words
                 said = getattr(it, mark).strip()
                 if said and speech.has(body.text, said):
@@ -480,6 +486,106 @@ def calendar(doc):
                       f"DTSTART;VALUE=DATE:{day}", f"DTEND;VALUE=DATE:{nxt}", f"SUMMARY:{title}", "END:VEVENT"]
     lines.append("END:VCALENDAR")
     return "\r\n".join(lines) + "\r\n"
+
+BASE_URL = os.environ.get("SHIPLOG_URL", "https://shiplog-1037019152152.asia-south1.run.app")
+
+
+@app.get("/api/telegram")
+def telegram_link(request: Request):
+    """A one-time link that ties a Telegram chat to this workspace. The code expires after one use."""
+    key, _, _ = workspace(request)
+    if not tg.enabled():
+        raise HTTPException(404, "Telegram capture is not set up on this server")
+    code = secrets.token_urlsafe(12).replace("-", "a").replace("_", "b")
+    spaces.backend.put("tg-code-" + code, {"w": key, "at": time.time()})
+    return {"url": tg.link(code)}
+
+
+def tg_workspace(chat):
+    ref = spaces.backend.get(f"tg-chat-{chat}")
+    if ref:
+        return ref["w"], False
+    # A stranger (a judge) gets their own demo copy, the same as opening the web page.
+    key = "wtg" + hashlib.sha256(f"{chat}:{tg.secret()}".encode()).hexdigest()[:24]
+    spaces.backend.put(f"tg-chat-{chat}", {"w": key})
+    return key, True
+
+
+def tg_message(chat, text):
+    if text.startswith("/start"):
+        code = text.split(maxsplit=1)[1].strip() if " " in text else ""
+        ref = spaces.backend.get("tg-code-" + code) if re.fullmatch(r"[A-Za-z0-9]{8,30}", code) else None
+        if ref and time.time() - ref.get("at", 0) < 3600:
+            spaces.backend.put(f"tg-chat-{chat}", {"w": ref["w"]})
+            spaces.backend.put("tg-code-" + code, {"used": True})
+            return tg.send(chat, "Linked to your ShipLog. Hold the Flow key and talk: what you finished, what's due, "
+                                 "PRs, rules. I'll show what I understood before anything is saved.")
+        key, new = tg_workspace(chat)
+        return tg.send(chat, "Hi! I'm ShipLog. Talk to me with the Flow keyboard about your work: what you finished, "
+                             "deadlines, PRs, people not to ping. Ask questions too, like \"what's due this week?\"\n\n"
+                             f"This chat has its own ShipLog to try (with sample data). See it here: {BASE_URL}/?key={key}")
+    key, _ = tg_workspace(chat)
+    seed = "empty" if OWNER_KEY and hmac.compare_digest(key, OWNER_KEY) else "demo"
+    try:
+        rate_limit(key)
+    except HTTPException as e:
+        return tg.send(chat, e.detail)
+    doc = spaces.load(key, seed)
+    if re.search(r"\?\s*$", text) and len(text.split()) <= 25:
+        try:
+            a = asker.ask(text, doc)
+        except (asker.InputError, asker.ExtractError) as e:
+            return tg.send(chat, str(e))
+        quotes = "\n".join(f"   \"{c['quote']}\" ({c['at'][:10]})" for c in a["cites"])
+        return tg.send(chat, a["answer"] + ("\n\nFrom your log:\n" + quotes if quotes else ""))
+    try:
+        log = [i for i in reversed(doc["items"]) if i.get("status") == "open"]
+        draft = ex.extract(text, [p["name"] for p in doc["projects"]], known_repos(doc), log=log)
+        draft["heard"] = flowwords.misheard(text, flowwords.known_terms(doc))
+    except (ex.InputError, ex.ExtractError) as e:
+        return tg.send(chat, str(e))
+    if not draft.get("items") and not draft.get("changes"):
+        return tg.send(chat, tg.understood(draft))
+    spaces.backend.put(f"tg-pending-{chat}", {"text": text, "draft": draft, "w": key})
+    return tg.send(chat, tg.understood(draft), buttons=[("Save", "save"), ("Discard", "discard")])
+
+
+def tg_button(chat, data):
+    pending = spaces.backend.get(f"tg-pending-{chat}")
+    if not pending or not pending.get("draft"):
+        return tg.send(chat, "That one was already handled.")
+    spaces.backend.put(f"tg-pending-{chat}", {})
+    if data != "save":
+        return tg.send(chat, "Discarded. Nothing was saved.")
+    d, key = pending["draft"], pending["w"]
+    seed = "empty" if OWNER_KEY and hmac.compare_digest(key, OWNER_KEY) else "demo"
+    fields = SaveItem.model_fields
+    body = SaveBody(text=pending["text"], summary=(d.get("summary") or "")[:300], project="",
+                    items=[SaveItem(**{k: (v if v is not None or k in ("due", "date_words", "repo", "number") else "")
+                                       for k, v in it.items() if k in fields}) for it in d.get("items", [])],
+                    changes=[SaveChange(id=c["id"], action=c["action"], quote=c["quote"], due=c.get("due"))
+                             for c in d.get("changes", [])])
+    entry = save_into(key, seed, body, source="telegram")
+    n = len(entry["items"]) + len(entry["changes"])
+    return tg.send(chat, f"Saved {n} to your log. Open ShipLog to see it on Today.")
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    if not tg.enabled() or not hmac.compare_digest(request.headers.get("X-Telegram-Bot-Api-Secret-Token", ""), tg.secret()):
+        raise HTTPException(403, "not from Telegram")
+    u = await request.json()
+    try:
+        if "callback_query" in u:
+            q = u["callback_query"]
+            tg.call("answerCallbackQuery", callback_query_id=q["id"])
+            tg_button(q["message"]["chat"]["id"], q.get("data", ""))
+        elif (u.get("message") or {}).get("text"):
+            m = u["message"]
+            tg_message(m["chat"]["id"], m["text"].strip())
+    except Exception as e:  # always answer 200, or Telegram retries the same update for hours
+        print("telegram update failed:", repr(e))
+    return {"ok": True}
 
 
 @app.get("/")
