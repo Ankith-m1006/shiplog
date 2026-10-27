@@ -530,6 +530,10 @@ def tg_message(chat, text):
         rate_limit(key)
     except HTTPException as e:
         return tg.send(chat, e.detail)
+    try:  # reading takes a few seconds; show "typing..." so the chat never looks dead
+        tg.call("sendChatAction", chat_id=chat, action="typing")
+    except Exception:
+        pass
     doc = spaces.load(key, seed)
     if re.search(r"\?\s*$", text) and len(text.split()) <= 25:
         try:
