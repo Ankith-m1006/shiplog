@@ -4,7 +4,7 @@
 
 **Live:** https://shiplog-1037019152152.asia-south1.run.app (no sign-up: every browser gets its own copy of the demo)
 
-**Demo video (2 min):** https://youtu.be/fVCo67z4U1s
+**Demo video (2 min):** https://youtu.be/fVCo67z4U1s · **Build story (DEV):** https://dev.to/ankithm1006/i-stopped-typing-for-15-days-and-built-a-work-log-i-can-talk-to-published-false-403h
 
 Built for *No Hands: The Wispr Challenge* (WeMakeDevs × Wispr Flow), Builders track, 16-30 Oct 2026. Every prompt, spec note and review comment for this project was dictated through Wispr Flow.
 
