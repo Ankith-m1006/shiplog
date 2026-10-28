@@ -4,6 +4,8 @@
 
 **Live:** https://shiplog-1037019152152.asia-south1.run.app (no sign-up: every browser gets its own copy of the demo)
 
+**Demo video (2 min):** https://youtu.be/fVCo67z4U1s
+
 Built for *No Hands: The Wispr Challenge* (WeMakeDevs × Wispr Flow), Builders track, 16-30 Oct 2026. Every prompt, spec note and review comment for this project was dictated through Wispr Flow.
 
 I juggle ten hackathons, open pull requests and reviewers I must not ping twice, all in one long markdown tracker I update by hand. ShipLog lets me say the update instead: it pulls out what's done, what's due, who to chase and the rules I set, shows me exactly which of my words each item came from, and saves only what I confirm.
@@ -20,6 +22,12 @@ I juggle ten hackathons, open pull requests and reviewers I must not ping twice,
 4. **Log.** Every update with its summary, its items and, on tap, what you actually said. Search and filter by project.
 5. **Ask.** "Who should I not ping again?" is answered only from what you saved, with the quote and date behind it. If it isn't in your log, it says "That isn't in your log yet, so I won't guess."
 6. **Follow-up drafts** that obey your rules: ask for a nudge to a reviewer you said not to ping and ShipLog refuses, quoting your rule.
+7. **Reads updates like speech.** Self-corrections ("Tuesday, no wait, Wednesday"), take-backs ("scratch that"), hedges ("I think" = unsure), urgency ("really urgent" = priority) and spoken numbers ("PR two one eight six seven" = #21867). It reads by itself when Flow finishes typing.
+8. **Talk to edit.** "The Kestra one is done", "push the video to Thursday": ShipLog shows the change and applies it only when you confirm.
+9. **Needs you.** Merges close their items; failing checks, requested changes and new comments surface. GitHub (Connect GitHub, read-only OAuth) and GitLab merge requests. Deadlines as a calendar subscription.
+10. **Flow tab.** Names Flow misheard and the words to add to Flow's Dictionary, plus ready Snippets for your repos.
+11. **Write.** Stand-up, weekly report and a post from your log, each citing the items it used. Never sent for you.
+12. **Telegram.** Talk to the ShipLog bot with the Flow phone keyboard, see what was understood, tap Save or Discard.
 
 ## Trust rules (these are the product)
 
@@ -49,7 +57,7 @@ set GEMINI_API_KEY=...            # never commit it
 - **Storage:** one JSON document per workspace; local files in development, a Cloud Storage bucket in production (`SHIPLOG_BUCKET`).
 - **Workspaces, no sign-up:** each browser gets a random workspace key and its own copy of the demo; "Reset the demo" restores it. The owner's real workspace uses a private key (`SHIPLOG_OWNER_KEY`).
 - **Deploy:** `gcloud run deploy shiplog --source . --region asia-south1 --max-instances 1` (see `Dockerfile`).
-- **Tests:** 28 unit tests (date resolution, quote tracing, invented dates and PR numbers flagged, rule-blocked drafts, GitHub outages shown as unknown, Ask citations, parallel workspace creation) and a phone-viewport end-to-end run of capture → review → save → Today → Log against the real server.
+- **Tests:** 73 (`pytest tests`: date resolution, quote tracing, invented dates and PR numbers flagged, rule-blocked drafts, GitHub outages shown as unknown, Ask citations, parallel workspace creation, speech reading, talk to edit, needs you, Flow words, reports, owner workspace) including a phone-viewport end-to-end run of capture → review → save → Today → Log against the real server.
 
 Design notes: [docs/spec.md](docs/spec.md). Build log: one commit per day, each dictated.
 
